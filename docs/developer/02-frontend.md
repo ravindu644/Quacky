@@ -18,7 +18,7 @@ typedef enum {
     // keywords
     T_IF, T_THEN, T_ELIF, T_ELSE, T_FI, T_WHILE, T_DO, T_DONE, T_FOR, T_IN,
     T_FUNC, T_END, T_RETURN, T_BREAK, T_CONTINUE, T_CONST, T_TRUE, T_FALSE,
-    T_SLEEP, T_TYPE,
+    T_SLEEP, T_TYPE, T_HOLD, T_RELEASE, T_DELAY, T_REPEAT,
     // punctuation / operators
     T_LPAREN, T_RPAREN, T_COMMA, T_ASSIGN, T_DOTDOT,
     T_PLUS, T_MINUS, T_STAR, T_SLASH, T_PERCENT,
@@ -83,7 +83,8 @@ Recursive descent for statements, Pratt for expressions. Single token of lookahe
 ```
 parse_program:   skip_seps; while !EOF: parse_statement; expect_sep_or_closer
 parse_statement: switch cur.kind:
-    T_IDENT     → if next is '=' → assignment, elif next is '(' → call_stmt, else error
+    T_IDENT     → if next is '=' → assignment; elif next is '(' → call_stmt;
+                  elif cur names a key (keys.c) → parse_chord (see 4.4); else error
     T_CONST     → const_decl
     T_IF        → parse_if
     T_WHILE     → parse_while
@@ -92,6 +93,10 @@ parse_statement: switch cur.kind:
     T_RETURN    → error if not inside func; optional expr if next token is not a sep/closer
     T_BREAK/CONTINUE → error if loop_depth == 0
     T_SLEEP     → expr
+    T_DELAY     → expr                                         (* persistent default pause *)
+    T_REPEAT    → expr                                         (* repeat previous action *)
+    T_HOLD      → parse_chord body → S_HOLD
+    T_RELEASE   → "all" → S_RELEASE(all); else parse_chord body → S_RELEASE
     T_TYPE      → expect T_RAW_LINE; parse_raw_line (see 4.3)
 parse_block(closers...): skip_seps; while cur ∉ closers: parse_statement; expect sep unless cur ∈ closers
 ```
@@ -146,6 +151,38 @@ Algorithm over the slice:
 Decoded text segments are copied into the arena (they are no longer slices once escapes are
 decoded). Column numbers for errors inside `${...}` are `raw.col + offset`.
 
+### 4.4 Chords and keystroke statements
+
+Key names are **contextual**, not keyword tokens: the lexer emits a plain `T_IDENT` for
+`ctrl`, `enter`, `f5`, `down`, and the parser decides whether it is a key by looking it up in
+`keys.c`. This keeps the global keyword set small and lets `shift`/`enter` stay usable as
+variable names (01 §2). A chord parses into a resolved form, so the evaluator never re-parses
+names:
+
+```
+parse_chord:
+    c = {mod: 0, usages: [], n: 0}
+    loop:
+        resolve the current token as a key:
+            T_IDENT that is a modifier name → OR its bit into c.mod
+            T_IDENT that is a named key      → look up its usage, append to c.usages
+            T_IDENT of length 1 / T_INT of one digit → US char map (keys.c) → merge mod, append usage
+            otherwise → syntax error "unknown key 'X'"
+        if next token is '+' : consume it and continue
+        else break
+    if c.n > 6 : syntax error "too many keys in a chord (max 6)"
+```
+
+- A lone named key (`enter`) is a one-key chord: the loop runs once and stops at the newline.
+- `hold`/`release` reuse `parse_chord` for their argument; `release all` is a special case
+  recognised before `parse_chord`.
+- Resolving at parse time means an unknown key name is a **syntax** error (caught before
+  anything types), consistent with 06. The only keystroke error deferred to runtime is an
+  unmappable `type` character, which depends on the chosen output layout.
+- `keys.c` exposes two pure lookups the parser calls: `key_lookup(name) → {kind, bit|usage}`
+  and `char_key(codepoint) → {mod, usage} | none`. The same tables serve the output module (05
+  §4), so there is one source of truth for names and usages.
+
 ## 5. AST
 
 Tagged structs, allocated from the arena, children by pointer. Keep it to two node families:
@@ -162,15 +199,20 @@ typedef struct Expr {
 } Expr;
 
 typedef enum { S_ASSIGN, S_CONST, S_IF, S_WHILE, S_RETURN, S_BREAK, S_CONTINUE,
-               S_SLEEP, S_TYPE, S_CALL } StmtKind;
+               S_SLEEP, S_TYPE, S_CALL,
+               S_CHORD, S_HOLD, S_RELEASE, S_DELAY, S_REPEAT } StmtKind;
+
+typedef struct { uint8_t mod; uint8_t usages[6]; int n; bool all; } Chord;   // resolved at parse time; `all` only for S_RELEASE
+
 typedef struct Stmt {
     StmtKind kind; int line, col;
     union {
         struct { Str name; Expr *value; } assign;
         struct { Expr *cond; struct Block *then_b; struct Stmt *else_s; } iff;  // else_s: next IF, or a BLOCK, or NULL
         struct { Expr *cond; struct Block *body; } loop;
-        Expr *expr;                                   // RETURN (nullable), SLEEP, CALL
+        Expr *expr;                                   // RETURN (nullable), SLEEP, DELAY, REPEAT, CALL
         struct { Seg *segs; int nsegs; bool stop_output; } type;
+        Chord chord;                                  // CHORD, HOLD, RELEASE
     };
 } Stmt;
 

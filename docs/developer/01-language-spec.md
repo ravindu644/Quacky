@@ -1,7 +1,15 @@
 # 01 · Language specification
 
-Quacky is a shell-flavoured scripting language whose only observable side effect is
-appending characters to one output stream, one character per tick (default 20 ms).
+Quacky is a shell-flavoured scripting language that drives a USB HID keyboard. A script
+computes with ints, bools and strings, loops, branches, calls functions, and emits two kinds
+of key activity: `type` writes literal text, and a **chord** (`ctrl + c`) presses keys
+together. The interpreter turns each into USB HID keyboard reports written to `/dev/hidgX`
+(the node provided by the companion USB Arsenal project), so the host computer sees a real
+keyboard typing at supersonic speed. For safe dry-runs and the test suite it can instead write
+a human-readable transcript (see 05). Pacing is one key event per tick (default 20 ms).
+
+This is an educational, free and open-source tool for learning how HID keyboards, USB gadgets
+and small interpreters work.
 
 ## 1. Lexical structure
 
@@ -21,8 +29,16 @@ appending characters to one output stream, one character per tick (default 20 ms
 
 ```
 if then elif else fi while do done for in func end return break continue
-const true false sleep type
+const true false sleep type hold release delay repeat
 ```
+
+### Key names (contextual, not reserved)
+
+Key words such as `ctrl`, `shift`, `enter`, `f5`, `down` are recognised **only where a key is
+expected**: at the start of a chord statement, after a `+`, and as the argument of
+`hold`/`release`. They are *not* global keywords, so `shift` and `enter` remain legal variable
+names, and the End key (`endkey`) does not collide with the block-closing `end`. The full list
+is in §6.1.
 
 ## 2. Grammar (EBNF)
 
@@ -41,10 +57,22 @@ statement   = assignment
             | "continue"
             | sleep_stmt
             | type_stmt
+            | chord_stmt
+            | hold_stmt
+            | release_stmt
+            | delay_stmt
+            | repeat_stmt
             | call_stmt ;
 
 assignment  = IDENT "=" expr ;
 const_decl  = "const" IDENT "=" expr ;
+
+chord_stmt  = key { "+" key } ;                                      (* see §6 *)
+hold_stmt   = "hold" key { "+" key } ;
+release_stmt= "release" ( "all" | key { "+" key } ) ;
+delay_stmt  = "delay" expr ;                                         (* persistent default pause, ms *)
+repeat_stmt = "repeat" expr ;                                        (* re-run the previous action expr times *)
+key         = KEY_NAME | LETTER | DIGIT ;                            (* KEY_NAME from §6.1 *)
 
 if_stmt     = "if" expr "then" block
               { "elif" expr "then" block }
@@ -69,6 +97,11 @@ primary     = INT | STRING | "true" | "false" | IDENT
 Block-closing keywords (`then do done fi elif else end`) have no prefix or infix rule in the
 expression parser, so an expression naturally stops in front of them. That is what makes
 `while i < 3 do` and `if i == 1 then type one` work without parentheses.
+
+A statement that begins with an identifier is dispatched by its first and second tokens: `=`
+→ assignment, `(` → call, a key name (§6.1) → chord statement, otherwise the
+"expected assignment or call" error. So `enter` is a keystroke, `down` is a keystroke, but
+`enter = 5` is still an assignment to a variable named `enter`.
 
 A statement may follow `then`, `do`, or `else` on the same line:
 
@@ -165,7 +198,107 @@ type Hello $name, you have ${count * 2} items.\n
 - Each UTF-8 **code point** is one tick: write it with one `write(2)`, then sleep until the next deadline. Multi-byte characters are never split across ticks.
 - Interpolated values use `to_string` from §4.3.
 
-## 6. Sample programs
+## 6. Keystrokes and HID output
+
+`type` covers literal text. Everything else a keyboard can do (named keys, modifier
+combinations, keeping a key down) is expressed with chords and the `hold`/`release` verbs.
+
+### 6.1 Key names
+
+Key names are lowercase words, recognised only in key position (§2). They fall into two groups.
+
+**Modifiers** (set a bit in the report's modifier byte; never occupy a key slot):
+
+| Name | Aliases | Modifier bit |
+|---|---|---|
+| `ctrl` | `control` | `0x01` (left control) |
+| `shift` | | `0x02` (left shift) |
+| `alt` | `option` | `0x04` (left alt) |
+| `super` | `win`, `gui`, `meta`, `command` | `0x08` (left GUI / Super / Windows / Command) |
+| `altgr` | `ralt` | `0x40` (right alt, for layouts that need it) |
+
+**Named keys** (one HID usage, occupy a key slot):
+
+```
+enter  esc  backspace  tab  space  delete  insert  endkey  home  pageup  pagedown
+up  down  left  right   capslock  numlock  scrolllock  printscreen  pause  menu
+f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12 … f24
+```
+
+The End key is spelled `endkey` because `end` is reserved for closing a `func` block. A single
+letter or digit in key position (`c`, `4`) is mapped through the same US table as `type`
+(§6.4), so `ctrl + c` and `alt + 4` work. Usage numbers are listed in Appendix A of 05.
+
+### 6.2 Chords
+
+A chord is one or more keys joined with `+`, pressed **together** and released together:
+
+```
+enter                 # one named key
+ctrl + c
+ctrl + alt + delete
+super + r
+shift + tab
+```
+
+- Modifiers in the chord are OR'd into the report's modifier byte; the non-modifier keys fill
+  the key slots. At most **6** non-modifier keys (boot-protocol rollover); more is a runtime
+  error.
+- If a letter/digit key needs Shift on the US layout (`$`, `A`), that Shift is merged with any
+  modifiers you wrote.
+- A lone named key (`enter`) is just a one-key chord.
+
+### 6.3 Holding keys: `hold` / `release`
+
+Chords press and release in one step. To keep keys down across later statements, use `hold`;
+undo it with `release`:
+
+```
+hold shift
+down
+down
+down
+release shift            # types three Shift+Down, i.e. a downward selection
+```
+
+- `hold` adds its keys to a persistent held set that is merged into **every** report until
+  released; `release` removes them. `release all` clears the whole held set.
+- Releasing a key that is not held is a runtime error.
+
+### 6.4 Typing text as keys
+
+In HID output each code point produced by `type` is looked up in a US-QWERTY
+character → (modifier, usage) table and emitted as a press then a release. `\n` presses
+`enter`, `\t` presses `tab`. Uppercase and shifted symbols carry the Shift bit; there is no
+runtime shift logic, the table holds it. A code point with no US-layout key is a runtime error
+in HID mode (`no US-layout key for U+XXXX`); in transcript mode it is written verbatim. One
+documented hook (05) allows alternate layout tables later. v1 ships US QWERTY only.
+
+### 6.5 Pacing: `delay` and `repeat`
+
+```
+delay 100                # from here on, pause 100 ms after every statement (delay 0 turns it off)
+sleep 500                # one-shot pause of 500 ms, right here
+down
+repeat 5                 # press down five more times (six presses total)
+```
+
+- `delay N` sets a **persistent** default pause inserted after every following statement; it is
+  distinct from `sleep N`, which pauses once. Both take an int ≥ 0 (ms); negative is a runtime
+  error. Default is `delay 0`.
+- `repeat N` re-runs the immediately preceding keystroke, `type`, or chord statement N more
+  times. `repeat` with no preceding action, or after a non-keystroke statement, is a runtime
+  error.
+
+### 6.6 What drives the hardware
+
+Each chord/keystroke becomes USB HID boot-keyboard reports written to `/dev/hidgX`: an 8-byte
+press report `[modifiers, 0, k1..k6]` followed by a release report (the held set, or all
+zeroes). Timing, the report layout, the device node and the dry-run transcript are specified in
+05; device composition (which `/dev/hidgX` exists, the USB identity) is owned by USB Arsenal,
+not by Quacky.
+
+## 7. Sample programs
 
 ```
 # greet.qk
@@ -209,7 +342,26 @@ done
 ```
 (no newline after `done`).
 
-## 7. Explicit non-goals
+A keystroke-oriented script, `open-notes.qk`, that opens a run dialog on the host and types:
+
+```
+# open-notes.qk
+delay 50               # settle time after every step
+super + r              # open the Run dialog
+sleep 400
+type notepad
+enter
+sleep 600
+type Hello from Quacky!
+enter
+hold shift
+home                   # select the line we just typed
+release shift
+```
+
+## 8. Explicit non-goals
 No floats, arrays, maps, nil, closures, nested functions, modules, string indexing, stdin, or
-any output channel other than the `type` stream. Adding any of these is a new design decision,
-not an extension of this spec.
+any output other than the HID key stream (and its dry-run transcript). Mouse reports, consumer
+/ media keys, LED and button handling, USB identity and storage are **not** part of the
+language: USB Arsenal owns the gadget. Adding any of these is a new design decision, not an
+extension of this spec.

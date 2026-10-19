@@ -56,7 +56,9 @@ clean: ; rm -rf bin
 ```
 
 Whole-program compilation (all `.c` in one `gcc` invocation) is fine at this size, lets GCC
-inline across files, and avoids object-file rules per target.
+inline across files, and avoids object-file rules per target. `SRC` is a `wildcard`, so
+`src/keys.c` (the key-name and US char→usage tables, 05 §4) is compiled with no Makefile
+change; drop a new `.c` into `src/` and it builds.
 
 ## 4. Portability checklist (32-bit is the enemy)
 

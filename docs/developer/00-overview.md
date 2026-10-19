@@ -1,10 +1,16 @@
 # 00 · Overview
 
-Quacky (placeholder name) is a tiny shell-flavoured scripting language whose **only** side
-effect is appending text to one output stream, one character every 20 ms. Scripts compute
-with ints, bools and strings, loop, branch, call functions, sleep, and `type` text. Nothing
-else. The interpreter is a single static C11 binary for x86_64, i686, aarch64, armhf and
-riscv64.
+Quacky is a tiny shell-flavoured scripting language that drives a USB HID keyboard. Scripts
+compute with ints, bools and strings, loop, branch, call functions, pause, `type` text, and
+press key **chords** (`ctrl + c`). The interpreter turns that into USB HID keyboard reports
+written to `/dev/hidgX` (the node the companion **USB Arsenal** project exposes through
+configfs), so the host computer sees a keyboard typing at supersonic speed, one key event
+every 20 ms by default. For a safe dry-run and for the test suite it instead writes a
+human-readable transcript. The interpreter is a single static C11 binary for x86_64, i686,
+aarch64, armhf and riscv64.
+
+It is an educational, free and open-source project: a learning-friendly, no-cost alternative
+to expensive commercial typing-automation hardware, and a small, readable interpreter to study.
 
 This folder is the blueprint for the real implementation. No interpreter code exists here.
 
@@ -13,11 +19,14 @@ This folder is the blueprint for the real implementation. No interpreter code ex
 - Portable to 32-bit: `int64_t` values, `size_t` lengths, 64-bit `time_t` via musl 1.2.5.
 - Precise cadence: absolute-deadline sleeps, no cumulative drift.
 - Small: 60–130 KB static binaries, zero dependencies beyond libc.
-- Readable: ~3 000 lines of C across six files.
+- Readable: ~3 200 lines of C across seven files.
+- Safe to rehearse: a dry-run transcript and a `--check` parse step before anything types.
 
 ## Non-goals
-Speed beyond "invisible next to a 20 ms sleep". Floats, containers, closures, modules, stdin,
-a REPL, a bytecode VM.
+Speed beyond "invisible next to a 20 ms tick". Floats, containers, closures, modules, stdin,
+a REPL, a bytecode VM. Mouse reports, consumer/media keys, LEDs, buttons, USB identity and
+storage: USB Arsenal owns the gadget, Quacky only writes keyboard reports to the node it
+provides.
 
 ## Pipeline
 
@@ -29,21 +38,28 @@ a REPL, a bytecode VM.
             ──► AST        arena-allocated, freed once at exit                         (02)
             ──► hoist      register all `func` declarations                            (03)
             ──► evaluator  tree-walk; status codes OK/ERR/RETURN/BREAK/CONTINUE;      (03)
-                           hash-map frames, two-level scoping; refcounted strings      (04)
-            ──► output     open(O_APPEND) once; per code point: clock_nanosleep        (05)
-                           (CLOCK_MONOTONIC, TIMER_ABSTIME) then write(2)
+                           hash-map frames, two-level scoping; refcounted strings;      (04)
+                           chords/hold/release/delay/repeat drive the output module
+            ──► output     open node/file once; per key event: clock_nanosleep         (05)
+                           (CLOCK_MONOTONIC, TIMER_ABSTIME) then write(2).
+                           HID backend → 8-byte reports to /dev/hidgX;
+                           transcript backend → readable text (dry-run + tests)
             ──► exit       0 ok · 1 runtime · 2 syntax · 64+ usage                     (06)
 ```
+
+CLI: `quacky script.qk` writes a transcript to stdout (dry-run); `quacky --hid /dev/hidg0
+script.qk` types for real; `quacky -o out.txt script.qk` writes a transcript to a file (tests);
+`quacky --check script.qk` parses only and reports syntax errors; `-d MS` sets the tick.
 
 ## Document map
 
 | Doc | Covers |
 |---|---|
-| [01-language-spec](01-language-spec.md) | Grammar, operators, semantics, `type` rules, sample program |
-| [02-frontend](02-frontend.md) | Lexer incl. raw mode, Pratt parser, AST, arena |
-| [03-evaluator](03-evaluator.md) | Status codes, frames, calls, hoisting |
+| [01-language-spec](01-language-spec.md) | Grammar, operators, semantics, `type` and keystroke rules, sample programs |
+| [02-frontend](02-frontend.md) | Lexer incl. raw mode and chords, Pratt parser, AST, arena |
+| [03-evaluator](03-evaluator.md) | Status codes, frames, calls, hoisting, keystroke statements |
 | [04-values-and-strings](04-values-and-strings.md) | Value union, refcounting, `int_op` edge cases |
-| [05-type-and-timing](05-type-and-timing.md) | Output fd, UTF-8 ticks, absolute deadlines, signals |
+| [05-type-and-timing](05-type-and-timing.md) | Output backends (HID + transcript), keymap, reports, absolute deadlines, signals |
 | [06-errors](06-errors.md) | Classes, message format, status-codes-vs-longjmp decision |
 | [07-build-and-cross](07-build-and-cross.md) | Toolchains, flags, Makefile, 32-bit checklist |
 | [08-testing](08-testing.md) | Golden files, timing tests, qemu, sanitizers |
@@ -54,13 +70,14 @@ a REPL, a bytecode VM.
 ```
 quacky/
   src/
-    main.c        CLI (-o FILE, -d MS), read file, run, exit codes
-    lex.c/.h      tokens, raw mode
-    parse.c/.h    statements, Pratt, `type` segments, arena
-    eval.c/.h     Interp, frames, status codes, calls
+    main.c        CLI (--hid DEV, -o FILE, --check, -d MS), read file, run, exit codes
+    lex.c/.h      tokens, raw mode, chords
+    parse.c/.h    statements, Pratt, `type` segments, chords, arena
+    eval.c/.h     Interp, frames, status codes, calls, keystroke statements
     value.c/.h    Value, QStr refcount, to_string, int_op
-    output.c/.h   fd, ticks, sleep, write_all
-  tests/          cases/*.qk + *.out, run.sh
+    output.c/.h   fd, backends, ticks, sleep/delay, HID reports, held set, write_all
+    keys.c/.h     key-name table and US char→(modifier,usage) table
+  tests/          cases/*.qk + *.out (transcript) + *.hid (report bytes), run.sh
   Makefile        five cross targets + native sanitizer build
   docs/developer/ this blueprint
 ```
@@ -74,7 +91,7 @@ quacky/
 | Variable storage | hash map per frame, two scope levels | resolver + slots (clox): speed we cannot observe |
 | Strings | refcount, arena literals immortal | leak-until-exit: unbounded in loops; GC: no cycles possible without containers |
 | Timing | `clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME)` on a running deadline | relative `nanosleep`: accumulates wake-up latency per character |
-| Output | raw `write(2)` per code point, `O_APPEND` | stdio: buffers, destroys the effect |
+| Output | raw `write(2)` per key event; two backends (HID reports, transcript) behind one interface | stdio: buffers, destroys the cadence; a single hard-wired backend: no safe dry-run or golden tests |
 | Precedence | C table verbatim | "fixed" bitwise precedence: breaks bash users' intuition |
 | Truthiness | none, conditions must be bool | int truthiness: hides type errors |
 

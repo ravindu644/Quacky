@@ -12,14 +12,18 @@ tests/
     control.qk        control.out
     funcs.qk          funcs.out
     type_escapes.qk   type_escapes.out
+    keys.qk           keys.out    keys.hid     (transcript + captured HID report bytes)
     errors/
       undef_var.qk    undef_var.err   (expected stderr, exit code in first line)
       div_zero.qk     ...
   run.sh
 ```
 
-`run.sh`: for every `cases/*.qk`, run `quacky -d 0 -o $tmp case.qk`, `cmp $tmp case.out`.
-For `errors/*.qk`, compare stderr and exit code. `-d 0` disables the tick so a 2 000-character
+`run.sh`: for every `cases/*.qk`, run `quacky -d 0 -o $tmp case.qk`, `cmp $tmp case.out`
+(transcript backend). For a `case` that also has a `case.hid`, run
+`quacky -d 0 --hid $tmp_dev case.qk` where `$tmp_dev` is a **regular file** (the HID backend
+`write(2)`s the same bytes to any fd), then `cmp $tmp_dev case.hid` to check the exact report
+stream. For `errors/*.qk`, compare stderr and exit code. `-d 0` disables the tick so a long
 expected file finishes instantly.
 
 Required coverage (one case each, mapped to the spec):
@@ -33,7 +37,12 @@ Required coverage (one case each, mapped to the spec):
 | `funcs` | forward call (hoisting), recursion (`fib 20`), arity error, no-value error, global write from function, const write error |
 | `type_escapes` | `\n \t \\ \$ \xHH \0NNN \c`, `$var`, `${expr}`, lone `$`, `#` inside line, empty `type`, UTF-8 string with multi-byte characters |
 | `comments` | `#` line, `#[ ]#` block across lines, `#` inside string literal kept |
-| `errors/*` | one file per catalogue entry in 06 §5, plus syntax errors: `break` outside loop, unterminated string, unclosed `#[`, unbalanced `${` |
+| `keys` | chords (`ctrl + c`, `ctrl + alt + delete`, lone `enter`), shifted chord target (`shift + a`), `hold`/`release` with the held set merged into later reports, `release all`, `delay` pacing, `repeat` of the previous action, `type` characters that need Shift. Checked in **both** backends: transcript tags in `keys.out`, exact bytes in `keys.hid` |
+| `errors/*` | one file per catalogue entry in 06 §5, plus syntax errors: `break` outside loop, unterminated string, unclosed `#[`, unbalanced `${`, `unknown key`, `too many keys in a chord`; and keystroke runtime errors: unmappable `type` char under `--hid`, `release` of an unheld key, `repeat` with no action |
+
+`--check` is covered for free: each `errors/*` syntax case is also run as
+`quacky --check case.qk` and must print the same diagnostic and exit 2 while producing **no**
+output to `$tmp`, and each good `cases/*` must `--check` clean with exit 0.
 
 ## 2. Timing test (the feature)
 

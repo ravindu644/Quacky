@@ -37,9 +37,10 @@ typedef struct {
     Func   **funcs; int nfuncs;      // hoisted at startup, looked up by name (linear or small hash)
     int      depth;                  // call depth, limit 200
     Value    ret;                    // parked return value
+    Stmt    *last_action;            // last keystroke/type/chord stmt, for `repeat`; NULL if none
     char     err[512];               // runtime error message
     int      err_line, err_col;
-    Output  *out;                    // see 05
+    Output  *out;                    // see 05 (owns the held-key set and default_delay)
 } Interp;
 ```
 
@@ -54,10 +55,10 @@ along with their `Var` nodes; the `Value`s inside are released per 04.
 lookup(name):  v = find(frame, name); if (!v && frame != globals) v = find(globals, name); return v
 assign(name, val):
     v = find(frame, name)             ?: find(globals, name)
-    if (v && v->is_const) → ST_ERR "cannot assign to const 'X'"
+    if (v && v->is_const) → ST_ERR "cannot assign to constant 'X'"
     if (v) replace value (release old, retain new)
     else insert into *current* frame
-const(name, val): if find(frame,name) → ST_ERR "redeclared"; insert with is_const
+const(name, val): if find(frame,name) → ST_ERR "constant 'X' already declared"; insert with is_const
 ```
 
 ## 3. Expression evaluation
@@ -85,6 +86,20 @@ Status exec_stmt(Interp *I, Stmt *s);
 Status exec_block(Interp *I, Block *b);   // loops over stmts, returns first non-OK
 ```
 
+### 4.1 Default delay and `repeat`
+
+Two cross-statement behaviours live here rather than in the output module:
+
+- **Default delay.** After `exec_stmt` returns `ST_OK`, `exec_block` calls
+  `out_post_statement(I->out)`, which pauses `default_delay` ms (0 = no pause). `out_post`
+  runs for every statement kind, so `delay 100` paces a whole script without a `sleep` on each
+  line. The `delay` statement itself only stores the value (05 §6).
+- **`repeat N`.** `exec_stmt` records a pointer to the last **action** statement it ran
+  (`S_TYPE`, `S_CHORD`, `S_HOLD`, `S_RELEASE`) in `I->last_action`, and clears it on any other
+  statement. `repeat N` re-runs `I->last_action` N times; a null `last_action` is the runtime
+  error "repeat with no preceding action". `repeat` does not become the new `last_action`, so
+  two `repeat`s in a row both refer to the original action.
+
 | Stmt | Behaviour |
 |---|---|
 | `S_ASSIGN` / `S_CONST` | eval, then `assign` / `const` |
@@ -93,8 +108,13 @@ Status exec_block(Interp *I, Block *b);   // loops over stmts, returns first non
 | `S_RETURN` | eval optional expr into `I->ret` (or `VAL_NONE`); return `ST_RETURN` |
 | `S_BREAK/CONTINUE` | return the code |
 | `S_SLEEP` | eval → int ≥ 0 else error → `out_sleep_ms(I->out, ms)` (05) |
-| `S_TYPE` | for each segment: text → emit bytes; expr → eval, `to_string`, emit; then `"\n"` unless `stop_output`. Emission goes through `out_emit(I->out, bytes, len)` which does the per-code-point pacing (05) |
+| `S_TYPE` | for each segment: text → emit bytes; expr → eval, `to_string`, emit; then `"\n"` unless `stop_output`. Emission goes through `out_type(I->out, bytes, len)` which does the per-code-point pacing and the US keymap (05) |
 | `S_CALL` | evaluate the call, discard the value (a no-value return is fine here) |
+| `S_CHORD` | `out_chord(I->out, c.mod, c.usages, c.n)` — press the resolved chord and release (05 §2) |
+| `S_HOLD` | `out_hold(...)` — add the chord's keys to the persistent held set |
+| `S_RELEASE` | `out_release(..., c.all)` — remove them (or clear all); releasing a key not held → error |
+| `S_DELAY` | eval → int ≥ 0 else error → `out_set_default_delay(I->out, ms)` |
+| `S_REPEAT` | eval → int ≥ 0 else error → re-run `I->last_action` that many times (see §4.1); no preceding action → error |
 
 ## 5. Function calls
 

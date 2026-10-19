@@ -78,6 +78,19 @@ them.
 ## Read online, not cloned
 - **wren** `src/vm/wren_compiler.c`, `readString` / `TOKEN_INTERPOLATION`, `MAX_INTERPOLATION_NESTING 8`, paren counting in `nextToken`: the model for `${expr}` interpolation. https://github.com/wren-lang/wren/blob/main/src/vm/wren_compiler.c
 
+## HID report layout and key usages
+The 8-byte boot-keyboard report (`[modifier, reserved, k1..k6]`), the modifier bitmap bits
+(ctrl 0x01, shift 0x02, alt 0x04, GUI 0x08, right-alt 0x40) and every key usage in 05 §4 come
+straight from the public USB standards, not from any third-party tool:
+- **USB HID Usage Tables**, Usage Page 0x07 (Keyboard/Keypad): the usage numbers for letters,
+  digits, named keys and the keypad. https://usb.org/document-library/hid-usage-tables-15
+- **Device Class Definition for HID 1.11**, Appendix B.1 (the boot-protocol keyboard report
+  descriptor): the 8-byte report shape and the press-then-release convention.
+  https://usb.org/document-library/device-class-definition-hid-111
+- **Linux USB gadget / f_hid** (`/dev/hidgN`): a report is delivered by `write(2)`ing the
+  descriptor's report length to the node; the host LED output report is readable but unused
+  here. Documentation/usb/gadget_hid.rst in the kernel tree.
+
 ## Man pages and documents consulted
 - `clock_nanosleep(2)`: https://man7.org/linux/man-pages/man2/clock_nanosleep.2.html — EINTR with `TIMER_ABSTIME`, no `rem`, never restarted by `SA_RESTART`, past deadline returns immediately, absolute timers avoid drift.
 - `write(2)`: https://man7.org/linux/man-pages/man2/write.2.html — partial writes on pipes after signal, `O_APPEND` atomic seek+write, `EPIPE`/`SIGPIPE`.

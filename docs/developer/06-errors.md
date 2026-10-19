@@ -4,8 +4,8 @@
 
 | Class | Detected by | Examples | Exit |
 |---|---|---|---|
-| **Syntax** | lexer/parser, before anything runs | unterminated string, `break` outside loop, `func` inside `if`, duplicate `func`, unbalanced `${` | 2 |
-| **Runtime** | evaluator / output | undefined variable, type mismatch, `/ 0`, const reassignment, arity, recursion depth, `EPIPE` | 1 |
+| **Syntax** | lexer/parser, before anything runs | unterminated string, `break` outside loop, `func` inside `if`, duplicate `func`, unbalanced `${`, unknown key name, too many keys in a chord | 2 |
+| **Runtime** | evaluator / output | undefined variable, type mismatch, `/ 0`, const reassignment, arity, recursion depth, unmappable `type` character, `release` of an unheld key, `repeat` with no action, output/`EPIPE` | 1 |
 | Usage | `main` | unknown flag, unreadable script, cannot open `-o` file | 64 (`EX_USAGE`), 66 (`EX_NOINPUT`), 73 (`EX_CANTCREAT`) from `<sysexits.h>` |
 
 Exit 0 means the whole program ran. A syntax error therefore guarantees **no output was
@@ -70,10 +70,18 @@ panic-mode synchronisation is an upgrade, not a need.)
 | condition not bool | `condition must be bool, got int` |
 | div/mod zero | `division by zero` |
 | sleep negative | `sleep expects a non-negative int` |
+| delay negative | `delay expects a non-negative int` |
+| repeat negative | `repeat expects a non-negative int` |
 | arity | `function 'f' expects 2 arguments, got 3` |
 | no value | `function 'f' returned no value` |
 | unknown function | `undefined function 'f'` |
 | depth | `recursion too deep (limit 200)` |
+| unmappable char (HID only) | `no US-layout key for U+XXXX` |
+| release unheld key | `release of key that is not held: 'X'` |
+| repeat no action | `repeat with no preceding action` |
 | output | `output error: <strerror>` |
+
+Syntax-class keystroke messages (raised before any output): `unknown key 'X'`,
+`too many keys in a chord (max 6)`.
 
 Type names in messages: `int`, `bool`, `str`.

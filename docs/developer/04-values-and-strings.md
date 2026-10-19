@@ -16,7 +16,7 @@ typedef struct {
 ```
 
 16 bytes on 64-bit targets, 12 on 32-bit. Passed and returned by value everywhere; only the
-string payload is shared.
+string's byte buffer is shared.
 
 `VAL_NONE` exists so "function returned nothing" is representable; it is never storable in a
 variable (assignment of a `VAL_NONE` is the runtime error "function 'f' returned no value",
