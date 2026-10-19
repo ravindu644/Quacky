@@ -2,7 +2,8 @@
 
 Instructions for AI coding agents working in this repository. Read
 [docs/developer/00-overview.md](docs/developer/00-overview.md) for how the pieces fit together
-and the document map for the rest. This file holds the house rules and the facts you must not
+and the document map for the rest, and [docs/developer/ROADMAP.md](docs/developer/ROADMAP.md)
+for what is done and what is open. This file holds the house rules and the facts you must not
 relearn the hard way.
 
 ## What this is
@@ -149,5 +150,8 @@ explicitly.
 
 - The design lives in `docs/developer/` as nine numbered docs; keep code and blueprint in sync,
   and record a decision there when you make it, not only in a commit.
+- [docs/developer/ROADMAP.md](docs/developer/ROADMAP.md) is the plan from here to a verified
+  binary, in phases. Tick a box only when the item is implemented and verified as its phase
+  describes, and add a dated line to the status log when you finish a chunk.
 - The README stays lean and claims only what is real: at the blueprint stage it describes the
   design, not a shipped binary.
