@@ -89,7 +89,7 @@ typedef struct Stmt {
     union {
         struct { Str name; Expr *value; } assign;                        /* S_ASSIGN, S_CONST */
         struct { Expr *cond; struct Block *then_b; struct Stmt *else_s; } iff;  /* S_IF; else_s: next S_IF or NULL */
-        struct { Expr *cond; struct Block *body; } loop;                 /* S_WHILE */
+        struct { Expr *cond; struct Block *body; struct Stmt *step; } loop;  /* S_WHILE; step: a desugared for's `v = v + 1`, runs after the body even on continue, else NULL */
         Expr *expr;                                                      /* S_RETURN (nullable), S_SLEEP, S_DELAY, S_REPEAT, S_CALL */
         struct { Seg *segs; int nsegs; bool stop_output; } type;         /* S_TYPE */
         /* S_TYPE_FILE: a literal path is read and validated at parse time (bytes/len

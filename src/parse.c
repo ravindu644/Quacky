@@ -759,15 +759,10 @@ static void desugar_for_into(Parser *p, Stmt ***stmts, int *n, int *cap) {
     Stmt *incs = mk_stmt(p, S_ASSIGN, t);
     incs->assign.name = tok_str(var); incs->assign.value = mk_bin(p, T_PLUS, vref2, one, t);
 
-    int bn = body->n;                 /* append `v = v + 1` to the loop body */
-    Stmt **bs = arena_alloc(p->a, (size_t)(bn + 1) * sizeof *bs);
-    if (bn) memcpy(bs, body->stmts, (size_t)bn * sizeof *bs);
-    bs[bn] = incs;
-    Block *body2 = arena_alloc(p->a, sizeof *body2);
-    body2->stmts = bs; body2->n = bn + 1;
-
+    /* The increment is the loop's step, not a trailing body statement, so a
+       `continue` in the body still advances the counter (C's for semantics). */
     Stmt *wh = mk_stmt(p, S_WHILE, t);
-    wh->loop.cond = cond; wh->loop.body = body2;
+    wh->loop.cond = cond; wh->loop.body = body; wh->loop.step = incs;
 
     PUSH(stmts, n, cap, init);
     PUSH(stmts, n, cap, setend);

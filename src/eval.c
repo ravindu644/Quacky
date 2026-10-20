@@ -377,8 +377,8 @@ static Status exec_stmt(Interp *I, Stmt *s) {
                 if (!go) break;
                 Status b = exec_block(I, s->loop.body);
                 if (b == ST_BREAK) break;
-                if (b == ST_CONTINUE || b == ST_OK) continue;
-                return b;                                   /* ST_ERR or ST_RETURN propagate */
+                if (b != ST_CONTINUE && b != ST_OK) return b;   /* ST_ERR or ST_RETURN propagate */
+                if (s->loop.step && (st = exec_stmt(I, s->loop.step)) != ST_OK) return st;
             }
             break;
         case S_RETURN: {
