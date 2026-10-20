@@ -10,6 +10,7 @@
 #include "eval.h"
 #include "output.h"
 #include "parse.h"
+#include "quacky.h"
 
 static const char USAGE[] =
     "usage: quacky [--hid DEV | -o FILE] [--check] [-d MS] SCRIPT.qk\n"
@@ -19,7 +20,17 @@ static const char USAGE[] =
     "  --check           parse only, report the first syntax error, write nothing\n"
     "  -d MS             milliseconds per key event (default 5, 0 = no pacing)\n"
     "  --fast            roll each typed key into the next for ~2x HID throughput\n"
+    "  --version         show the version and build date\n"
     "  --help            show this message\n";
+
+static void print_banner(FILE *f) {
+    fprintf(f,
+            "Quacky v%s - %s\n"
+            "by %s\n"
+            "%s\n"
+            "Built on: %s %s\n",
+            QUACKY_VERSION, QUACKY_TAGLINE, QUACKY_AUTHOR, QUACKY_URL, __DATE__, __TIME__);
+}
 
 static char *read_file(const char *path) {
     FILE *f = fopen(path, "rb");
@@ -49,7 +60,10 @@ int main(int argc, char **argv) {
 
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];
-        if (strcmp(a, "--help") == 0 || strcmp(a, "-h") == 0) { fputs(USAGE, stdout); return 0; }
+        if (strcmp(a, "--help") == 0 || strcmp(a, "-h") == 0) {
+            print_banner(stdout); fputc('\n', stdout); fputs(USAGE, stdout); return 0;
+        }
+        else if (strcmp(a, "--version") == 0) { print_banner(stdout); return 0; }
         else if (strcmp(a, "--check") == 0) check = true;
         else if (strcmp(a, "--fast") == 0) fast = true;
         else if (strcmp(a, "--hid") == 0) { if (++i >= argc) usage_error("--hid needs a device"); hid_dev = argv[i]; }
