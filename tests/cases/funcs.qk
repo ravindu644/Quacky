@@ -1,0 +1,20 @@
+# forward calls via hoisting, recursion, global write from a function
+type ${add(2, 3)}
+type ${fib(20)}
+type ${later()}
+func add a b
+  return a + b
+end
+func fib n
+  if n < 2 then return n fi
+  return fib(n - 1) + fib(n - 2)
+end
+func later
+  return 99
+end
+g = 1
+func bump
+  g = g + 10
+end
+bump()
+type ${g}

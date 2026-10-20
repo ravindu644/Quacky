@@ -1,0 +1,4 @@
+2
+cases/errors/syn_unterminated.qk:1:5: error: unterminated string
+  x = "abc
+      ^

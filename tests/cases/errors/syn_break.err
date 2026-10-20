@@ -1,0 +1,4 @@
+2
+cases/errors/syn_break.qk:2:1: error: 'break' outside a loop
+  break
+  ^

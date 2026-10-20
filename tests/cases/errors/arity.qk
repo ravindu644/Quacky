@@ -1,0 +1,4 @@
+func f a b
+  return a
+end
+x = f(1)

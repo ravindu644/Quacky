@@ -1,0 +1,4 @@
+2
+cases/errors/syn_unbalanced_interp.qk:1:11: error: unbalanced '${' in a 'type' line
+  type here ${1 + 2
+            ^

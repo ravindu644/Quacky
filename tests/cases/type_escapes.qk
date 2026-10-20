@@ -1,0 +1,15 @@
+type a\tb\nc
+type back\\slash
+type dollar \$var
+type hex \x41\x42
+type oct \0101
+x = 7
+type x is $x
+type calc ${x * 6}
+type lone $ here
+type has # hash
+type u ${"na" + "ive"}
+type uni café ☕
+type
+type nonewline\c
+type after

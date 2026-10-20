@@ -1,0 +1,4 @@
+1
+cases/errors_hid/nomap.qk:1:1: error: no US-layout key for U+00E9
+  type café
+  ^

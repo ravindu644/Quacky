@@ -1,0 +1,4 @@
+1
+cases/errors/type_mismatch.qk:1:7: error: operator '+' expects int and int, got int and bool
+  x = 1 + true
+        ^

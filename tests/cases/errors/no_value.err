@@ -1,0 +1,4 @@
+1
+cases/errors/no_value.qk:4:5: error: function 'f' returned no value
+  x = f()
+      ^

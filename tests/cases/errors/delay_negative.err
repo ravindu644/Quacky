@@ -1,0 +1,4 @@
+1
+cases/errors/delay_negative.qk:1:10: error: delay expects a non-negative int
+  delay (0 - 5)
+           ^

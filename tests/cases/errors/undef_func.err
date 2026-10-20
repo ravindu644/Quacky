@@ -1,0 +1,4 @@
+1
+cases/errors/undef_func.qk:1:5: error: undefined function 'g'
+  x = g(1)
+      ^

@@ -1,0 +1,4 @@
+1
+cases/errors/repeat_no_action.qk:1:1: error: repeat with no preceding action
+  repeat 3
+  ^

@@ -1,0 +1,4 @@
+func f
+  return
+end
+x = f()

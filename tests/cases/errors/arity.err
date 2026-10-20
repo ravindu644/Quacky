@@ -1,0 +1,4 @@
+1
+cases/errors/arity.qk:4:5: error: function 'f' expects 2 arguments, got 1
+  x = f(1)
+      ^

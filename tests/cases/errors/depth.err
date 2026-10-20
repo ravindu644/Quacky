@@ -1,0 +1,4 @@
+1
+cases/errors/depth.qk:2:10: error: recursion too deep (limit 200)
+    return r(n + 1)
+           ^

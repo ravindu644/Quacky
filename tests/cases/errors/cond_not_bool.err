@@ -1,0 +1,4 @@
+1
+cases/errors/cond_not_bool.qk:1:1: error: condition must be bool, got int
+  if 5 then
+  ^

@@ -1,0 +1,9 @@
+# a line comment
+x = 5    # trailing comment
+#[ a block
+   comment across
+   lines ]#
+type x is $x
+type keep # inside
+y = "a # b"
+type ${y}

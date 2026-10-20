@@ -1,0 +1,4 @@
+2
+cases/errors/syn_unknown_key.qk:1:8: error: unknown key 'zzz'
+  ctrl + zzz
+         ^

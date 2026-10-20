@@ -1,0 +1,4 @@
+1
+cases/errors/undef_var.qk:1:6: error: undefined variable 'x'
+  type $x
+       ^

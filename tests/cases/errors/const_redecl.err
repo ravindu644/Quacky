@@ -1,0 +1,4 @@
+1
+cases/errors/const_redecl.qk:2:1: error: constant 'c' already declared
+  const c = 2
+  ^

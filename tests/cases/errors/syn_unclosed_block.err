@@ -1,0 +1,4 @@
+2
+cases/errors/syn_unclosed_block.qk:1:1: error: unclosed block comment
+  #[ open block
+  ^

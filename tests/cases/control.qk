@@ -1,0 +1,31 @@
+# if/elif/else, nested while with break/continue, inclusive and empty for
+if 1 < 2 then
+  type less
+elif 1 == 2 then
+  type eq
+else
+  type greater
+fi
+i = 0
+while i < 3 do
+  j = 0
+  while j < 3 do
+    j = j + 1
+    if j == 2 then continue fi
+    type i=$i j=$j
+  done
+  i = i + 1
+done
+for k in 1..3 do
+  type k=$k
+done
+for k in 5..1 do
+  type never
+done
+type for-empty-ok
+n = 0
+while true do
+  if n == 2 then break fi
+  type n=$n
+  n = n + 1
+done

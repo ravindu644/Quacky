@@ -1,0 +1,4 @@
+func r n
+  return r(n + 1)
+end
+x = r(1)

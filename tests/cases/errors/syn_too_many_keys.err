@@ -1,0 +1,4 @@
+2
+cases/errors/syn_too_many_keys.qk:1:25: error: too many keys in a chord (max 6)
+  a + b + c + d + e + f + g
+                          ^

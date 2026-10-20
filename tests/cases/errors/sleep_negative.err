@@ -1,0 +1,4 @@
+1
+cases/errors/sleep_negative.qk:1:10: error: sleep expects a non-negative int
+  sleep (0 - 1)
+           ^

@@ -1,0 +1,4 @@
+1
+cases/errors/const_write.qk:2:1: error: cannot assign to constant 'c'
+  c = 2
+  ^
