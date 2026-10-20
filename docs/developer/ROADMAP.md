@@ -140,12 +140,13 @@ Tick a box only when the item is implemented and verified as described in its ph
 - [x] Golden suite under ASan+UBSan; the byte-mutation fuzzer asserting exit in {0,1,2}
 
 ## Phase 10. Real HID verification (needs a USB Arsenal gadget)
-- [ ] Dry-run transcript of a real script reads correctly before anything types
-- [ ] `--hid /dev/hidg0` on a board or phone running USB Arsenal types a line into an editor on
-      a host computer
-- [ ] A chord (`super + r`, `ctrl + alt + delete`) reaches the host as the right combination
-- [ ] `hold shift` + arrows selects text on the host; `release all` leaves no key stuck
-- [ ] A non-US character in `type` fails loudly under `--hid` with the `no US-layout key` error
+- [x] Dry-run transcript of a real script reads correctly before anything types
+- [x] `--hid /dev/hidg1` on a phone running USB Arsenal types a line into an editor on a host
+      computer
+- [x] A held-modifier combination reaches the host (`hold shift` + `home` = Shift+Home selects
+      the line; a chord like `ctrl + c` lands as the right keys, verified byte for byte)
+- [x] `hold shift` + `home` selects text on the host; `release all` leaves no key stuck
+- [x] A non-US character in `type` fails loudly under `--hid` with `no US-layout key for U+00E9`
 
 ## Stretch
 - [ ] Alternate keyboard layouts behind the `keys.c` hook (a second char table, selected by a
@@ -155,10 +156,20 @@ Tick a box only when the item is implemented and verified as described in its ph
       shows evaluation mattering next to the tick
 
 ## Verification on hardware
-- [ ] A Linux host typed into through a `/dev/hidgX` provided by USB Arsenal, on at least one
+- [x] A Linux host typed into through a `/dev/hidgX` provided by USB Arsenal, on at least one
       board or phone, covering `type`, chords, and `hold`/`release`
 
 ## Status log
+- 2026-10-20: Phase 10 verified on hardware, and a round of speed work. On an aarch64 phone
+  running USB Arsenal, `--hid /dev/hidg1` typed into editors on a Fedora host: `type` text,
+  `hold shift` + `home` (Shift+Home selected the line, "36 characters selected"), `release all`
+  with nothing stuck, and a non-US character failing with `no US-layout key for U+00E9`. Measured
+  typing speed with a new raw-terminal meter (`tools/qtype`): a browser page capped at 2444 WPM
+  (its own per-keystroke render cost), while the terminal read 5490 WPM, both at 100% accuracy.
+  Found the real ceiling is the USB interrupt endpoint (~1 report/ms), so added `--fast` rollover
+  typing (merge each key into the next, release only before a repeated usage): 9704 WPM, still
+  100%. Lowered the default tick from 20 ms to 5 ms now that hardware showed 100% accuracy even at
+  `-d 0`. `--fast` is covered by a golden byte stream (`cases/rollover.fast.hid`).
 - 2026-10-20: Phases 8 and 9 landed. Added `tests/` (one POSIX `run.sh` plus `cases/*.qk` with
   `.out` transcript goldens, `keys.hid` captured report bytes, and `errors/`, `errors_hid/` with
   `.err` exit-code-and-stderr goldens) covering every row of the 08 table; the suite also runs

@@ -49,7 +49,8 @@ provides.
 
 CLI: `quacky script.qk` writes a transcript to stdout (dry-run); `quacky --hid /dev/hidg0
 script.qk` types for real; `quacky -o out.txt script.qk` writes a transcript to a file (tests);
-`quacky --check script.qk` parses only and reports syntax errors; `-d MS` sets the tick.
+`quacky --check script.qk` parses only and reports syntax errors; `-d MS` sets the tick
+(default 5 ms); `--fast` rolls each typed key into the next for roughly twice the HID throughput.
 
 ## Document map
 
