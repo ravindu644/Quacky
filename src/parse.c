@@ -476,7 +476,11 @@ static void parse_raw_line(Parser *p, Token raw, Stmt *s, bool add_newline) {
                 flush_text(p, &segs, &nseg, &segcap, &txt, &tn);
                 int depth = 1, j = i + 2;
                 while (j < len && depth > 0) {
-                    if (r[j] == '{') depth++;
+                    if (r[j] == '"') {          /* a brace inside a string literal is not structure */
+                        for (j++; j < len && r[j] != '"'; j++) if (r[j] == '\\') j++;
+                        if (j >= len) break;    /* unterminated: reported as unbalanced below */
+                    }
+                    else if (r[j] == '{') depth++;
                     else if (r[j] == '}') { depth--; if (depth == 0) break; }
                     j++;
                 }
