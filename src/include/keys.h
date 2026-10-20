@@ -14,18 +14,19 @@
 typedef enum { KEY_NONE, KEY_MODIFIER, KEY_NAMED } KeyKind;
 
 typedef struct {
-    KeyKind kind;
-    uint8_t value;   /* KEY_MODIFIER: the modifier bit; KEY_NAMED: the HID usage */
+  KeyKind kind;
+  uint8_t value; /* KEY_MODIFIER: the modifier bit; KEY_NAMED: the HID usage */
 } KeyRef;
 
 typedef struct {
-    bool    ok;
-    uint8_t mod;     /* modifier bits; Shift for uppercase and shifted glyphs */
-    uint8_t usage;   /* HID usage of the base key */
+  bool ok;
+  uint8_t mod;   /* modifier bits; Shift for uppercase and shifted glyphs */
+  uint8_t usage; /* HID usage of the base key */
 } CharKey;
 
-/* Resolve a lowercase key word: a modifier (with its aliases) or a named key. */
-KeyRef  key_lookup(Str name);
+/* Resolve a lowercase key word: a modifier (with its aliases) or a named key.
+ */
+KeyRef key_lookup(Str name);
 
 /* Map a US-ASCII code point to its (modifier, usage); ok=false when there is no
    US-layout key. A few control characters map to named keys so `type` works:

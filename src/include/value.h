@@ -4,28 +4,46 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>   /* free, for the inline str_release below */
+#include <stdlib.h> /* free, for the inline str_release below */
 
-#include "lex.h"   /* TokKind, int_op's operator selector */
+#include "lex.h" /* TokKind, int_op's operator selector */
 
 /* The value model (04). Three types only: int64, bool, str. No float, no
    truthiness; the evaluator keeps conditions strictly bool. */
 
-typedef enum { VAL_NONE, VAL_INT, VAL_BOOL, VAL_STR } ValType;  /* VAL_NONE is internal only */
+typedef enum {
+  VAL_NONE,
+  VAL_INT,
+  VAL_BOOL,
+  VAL_STR
+} ValType; /* VAL_NONE is internal only */
 
 /* A borrowed slice into the source buffer. The AST uses it for names and string
-   literals so nothing is copied until a value is actually needed (04 section 1). */
-typedef struct { const char *p; size_t len; } Str;
+   literals so nothing is copied until a value is actually needed (04 section
+   1). */
+typedef struct {
+  const char *p;
+  size_t len;
+} Str;
 
 /* One string struct, two lifetimes told apart by rc: rc < 0 is immortal (a
    literal or decoded `type` text living in the arena, never freed); rc > 0 is a
    runtime string from `+` or to_string, freed when the last reference drops
-   (04 section 2). data is a flexible array, so one malloc holds header + bytes. */
-typedef struct QStr { int rc; size_t len; char data[]; } QStr;
+   (04 section 2). data is a flexible array, so one malloc holds header + bytes.
+ */
+typedef struct QStr {
+  int rc;
+  size_t len;
+  char data[];
+} QStr;
 
 typedef struct {
-    ValType type;
-    union { int64_t i; bool b; QStr *s; };
+  ValType type;
+  union {
+    int64_t i;
+    bool b;
+    QStr *s;
+  };
 } Value;
 
 /* Status travels up the evaluator's C stack (03 section 1). Its real home is
@@ -34,10 +52,17 @@ typedef struct {
 typedef enum { ST_OK, ST_ERR, ST_RETURN, ST_BREAK, ST_CONTINUE } Status;
 
 /* Refcounting (04 section 2). An immortal string (rc < 0) ignores both, so the
-   same helpers work whether a value points at an arena literal or a heap string.
-   The two Value wrappers are in value.c; these two are hot and stay inline. */
-static inline void str_retain(QStr *s)  { if (s->rc > 0) s->rc++; }
-static inline void str_release(QStr *s) { if (s->rc > 0 && --s->rc == 0) free(s); }
+   same helpers work whether a value points at an arena literal or a heap
+   string. The two Value wrappers are in value.c; these two are hot and stay
+   inline. */
+static inline void str_retain(QStr *s) {
+  if (s->rc > 0)
+    s->rc++;
+}
+static inline void str_release(QStr *s) {
+  if (s->rc > 0 && --s->rc == 0)
+    free(s);
+}
 
 void val_retain(Value v);
 void val_release(Value v);
@@ -60,10 +85,10 @@ Status int_op(TokKind op, int64_t a, int64_t b, int64_t *out, const char **err);
    `~` is UB-free, so the evaluator applies it directly. */
 static inline int64_t int_neg(int64_t a) { return (int64_t)(0u - (uint64_t)a); }
 
-/* equal never fails: different types compare unequal. compare orders two ints or
-   two strings and writes -1/0/1 into *out; mixed types set *err and return
+/* equal never fails: different types compare unequal. compare orders two ints
+   or two strings and writes -1/0/1 into *out; mixed types set *err and return
    ST_ERR (04 section 5). */
-bool   equal(Value a, Value b);
+bool equal(Value a, Value b);
 Status compare(Value a, Value b, int *out, const char **err);
 
 _Static_assert(sizeof(int64_t) == 8, "Quacky values are exactly 64 bits");

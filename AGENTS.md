@@ -149,7 +149,10 @@ These are the choke points. Route through them; bypassing one is a bug, not a sh
   `eval:`, `value:`, `output:`, `keys:`, `build:`, `tests:`).
 - Keep the subject under ~72 characters and in the imperative. Explain *why* in the body when it is
   not obvious.
+- Run `make format` before committing any change to a `.c` or `.h` file.
 - Sign off commits (`git commit -s`).
+- Never add an AI trailer: no `Co-Authored-By:` for an agent, no `Claude-session` or similar.
+  Human co-authors are fine.
 
 ## Documentation
 
