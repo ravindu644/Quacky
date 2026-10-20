@@ -12,7 +12,8 @@ aarch64, armhf and riscv64.
 It is an educational, free and open-source project: a learning-friendly, no-cost alternative
 to expensive commercial typing-automation hardware, and a small, readable interpreter to study.
 
-This folder is the blueprint for the real implementation. No interpreter code exists here.
+This folder is the design guide: how the interpreter in [`src/`](../../src/) is built, module by
+module. Read it alongside the code.
 
 ## Goals
 - Correct and boring. Every undefined-behaviour trap in C integer arithmetic handled in one function.
@@ -64,14 +65,14 @@ script.qk` types for real; `quacky -o out.txt script.qk` writes a transcript to 
 | [06-errors](06-errors.md) | Classes, message format, status-codes-vs-longjmp decision |
 | [07-build-and-cross](07-build-and-cross.md) | Toolchains, flags, Makefile, 32-bit checklist |
 | [08-testing](08-testing.md) | Golden files, timing tests, qemu, sanitizers |
-| [09-references](09-references.md) | Every borrowed idea with `research/<repo>/<file>:<line>` |
+| [09-references](09-references.md) | Prior art: the projects studied and the idea borrowed from each |
 
-## Future project layout
+## Project layout
 
 ```
 quacky/
   src/
-    main.c        CLI (--hid DEV, -o FILE, --check, -d MS), read file, run, exit codes
+    main.c        CLI (--hid DEV, -o FILE, --check, -d MS, --fast), read file, run, exit codes
     lex.c/.h      tokens, raw mode, chords
     parse.c/.h    statements, Pratt, `type` segments, chords, arena
     eval.c/.h     Interp, frames, status codes, calls, keystroke statements
@@ -79,8 +80,10 @@ quacky/
     output.c/.h   fd, backends, ticks, sleep/delay, HID reports, held set, write_all
     keys.c/.h     key-name table and US char→(modifier,usage) table
   tests/          cases/*.qk + *.out (transcript) + *.hid (report bytes), run.sh
+  tools/          qtype, a typing-speed meter (not part of the shipped binary)
   Makefile        five cross targets + native sanitizer build
-  docs/developer/ this blueprint
+  docs/           end-user documentation (language, keys, examples, getting started)
+  docs/developer/ this design guide
 ```
 
 ## Key decisions in one screen

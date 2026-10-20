@@ -1,8 +1,10 @@
 # 09 · References
 
-Six repositories are shallow-cloned into `research/` (gitignored). Line numbers below were
-checked against those clones on 2026-10-20; re-clone with `git clone --depth 1 <url>` to follow
-them.
+Quacky borrows ideas from a handful of open interpreters and the Linux timing and standards docs.
+This page records what came from where, so you can read the originals yourself. Each reference
+points into the named project's own source tree; clone it with `git clone --depth 1 <url>` to follow
+along. The line numbers are a snapshot taken while Quacky was written and may have drifted as those
+projects changed, so treat them as a starting point, not an exact address.
 
 ## Cloned projects
 
