@@ -58,3 +58,11 @@ companion USB Arsenal project got a kernel patch to lower the HID endpoint's `bI
 terminal emulator, which crashed when fed ~11k keystrokes a second for half a second. The ceiling
 is the receiving computer, not the gadget. Use `--bench`, not the interactive view, for numbers
 like these: drawing each frame would make the terminal, not the keyboard, the thing you measure.
+
+`--ultra` lifts the per-poll limit by packing up to six distinct, same-shift characters into one
+keyboard report, so a run of distinct keys sends six characters per USB poll instead of one. On a
+3256-character distinct-alphabet passage (`abc…xyz0-9 -=;',./`), measured with `--bench` at a short
+poll interval: **47,197 chars/sec, 566,362 net WPM, 100% accuracy**. That is the best case, not
+everyday text: a repeated letter, a change of case, or a shifted symbol starts a new report, so
+prose lands closer to the `--fast` rate. `--ultra` also assumes the host honours the key order
+within a report (Linux does), so `--fast` stays the right default for an unknown target.
