@@ -6,12 +6,12 @@
 # (they measure wall time, so they only make sense running locally, not over adb).
 #
 #   ./run.sh                      # native build, everything
-#   QUACKY=/data/local/tmp/quacky-aarch64-linux-musl QK_SKIP_TIMING=1 ./run.sh
+#   QUACKY=/data/local/tmp/quacky-aarch64 QK_SKIP_TIMING=1 ./run.sh
 set -u
 
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$here" || exit 2
-QUACKY=${QUACKY:-../bin/quacky}
+QUACKY=${QUACKY:-../output/quacky-hardened}
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
@@ -73,11 +73,11 @@ for qk in cases/errors_hid/*.qk; do dev=$TMP/hdev; : > "$dev"; check_error "$qk"
 
 # Timing and fuzzing: wall-clock sensitive, so local runs only. Measure against
 # an -O2 build, not the ASan one whose start-up cost would blur the tight bounds;
-# the x86_64 release binary runs on this host when `make all` has produced it.
+# the x86_64 release binary runs on this host when `make all-build` has produced it.
 if [ "${QK_SKIP_TIMING:-0}" != 1 ]; then
     TQ=$QUACKY
-    if [ "$(uname -m)" = x86_64 ] && [ -x ../bin/quacky-x86_64-linux-musl ]; then
-        TQ=../bin/quacky-x86_64-linux-musl
+    if [ "$(uname -m)" = x86_64 ] && [ -x ../output/quacky-x86_64 ]; then
+        TQ=../output/quacky-x86_64
     fi
     # 100 characters at 20 ms = 100 ticks = 2000 ms (first char immediate).
     printf 'typeln %s\n' "$(printf 'a%.0s' $(seq 1 100))" > "$TMP/t100.qk"

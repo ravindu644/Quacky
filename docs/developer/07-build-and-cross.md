@@ -26,40 +26,53 @@ Expected final interpreter size: 60–120 KB on four targets, ~130 KB on aarch64
 CSTD    := -std=c11 -D_POSIX_C_SOURCE=200809L
 COPT    := -O2 -ffunction-sections -fdata-sections
 CWARN   := -Wall -Wextra -Wshadow -Wconversion -Wvla -Werror
-LDFLAGS := -static -s -Wl,--gc-sections
+LDFLAGS := -static -Wl,--gc-sections
 ```
+
+(The binary is stripped as a separate step after linking, so `-s` is not in `LDFLAGS`;
+`NO_STRIP=1` keeps the symbols.)
 
 - `-std=c11`, not `gnu11`: keeps the three GCC 9.4 targets honest. `_Static_assert`, `_Alignof`, anonymous unions, flexible array members are all C11.
 - `_POSIX_C_SOURCE=200809L` exposes `clock_nanosleep`, `CLOCK_MONOTONIC`, `TIMER_ABSTIME`, `sigaction`. Without it `-std=c11` hides them.
 - `-Wconversion` is what catches `size_t` → `int` and `int64_t` → `long` narrowing on the 32-bit targets at compile time, instead of at 3 a.m. on an armhf box.
 - `-static` with musl has none of glibc's static pitfalls: no NSS/`dlopen` for name lookup (we do none anyway), no locale files needed. `dlopen` itself is unavailable in a static musl binary, which is irrelevant here.
-- Debug build: `-O0 -g -fsanitize=address,undefined` on the **native** toolchain only. UBSan is the cheap way to prove the `int_op` wraparound claims in 04 §4.
+- Debug build: `make debug-hardened` compiles with the host `cc` (glibc) and
+  `-O0 -g -fsanitize=address,undefined`, into `output/quacky-hardened`; the tests run it. UBSan is
+  the cheap way to prove the `int_op` wraparound claims in 04 §4. It omits `-fsanitize=leak` on
+  purpose: a syntax error exits without freeing the arena by design, which the leak checker would
+  flag. `make native` is a plain static musl build, not instrumented.
 
-## 3. Makefile skeleton
+## 3. Makefile
+
+The build system is modelled on the companion Droidspaces and USB Arsenal projects. All output lands
+in `output/`; bare `make` prints the help. `SRCS` is a `wildcard src/*.c` (a new `.c` is compiled
+with no Makefile edit), and objects go under a per-arch `output/.obj/<arch>/` so builds for different
+architectures do not collide. Logs are kernel-style (`CC`/`LD`/`STRIP`); `V=1` shows full commands.
+
+A `find-cc` function locates a musl cross-compiler for a triple (checking `MUSL_CROSS`, then
+`~/toolchains/<triple>-cross/bin`, then `PATH`, then `/opt/cross`), and each per-arch target invokes
+a recursive `make` with that `CC`:
 
 ```make
-TC      := $(HOME)/toolchains
-TARGETS := x86_64-linux-musl i686-linux-musl aarch64-linux-musl arm-linux-musleabihf riscv64-linux-musl
-SRC     := $(wildcard src/*.c)
-INC     := -Isrc/include                         # headers live in src/include/
+SRCS = $(wildcard src/*.c)
+INC  = -Isrc/include
 
-all: $(TARGETS:%=bin/quacky-%)
+$(OBJ_DIR)/%.o: src/%.c
+	$(Q)$(CC) $(CSTD) $(COPT) $(CWARN) $(INC) -c $< -o $@
 
-bin/quacky-%: $(SRC) src/include/*.h | bin
-	$(TC)/$*-cross/bin/$*-gcc $(CSTD) $(COPT) $(CWARN) $(INC) $(SRC) $(LDFLAGS) -o $@
+quacky: $(OBJS)
+	$(Q)$(CC) $(OBJS) -o output/quacky $(LDFLAGS)   # then strip, unless NO_STRIP=1
 
-bin: ; mkdir -p bin
-
-native: $(SRC)                                   # host gcc, for tests and sanitizers
-	gcc $(CSTD) -O0 -g -fsanitize=address,undefined $(CWARN) $(INC) $(SRC) -o bin/quacky
-
-clean: ; rm -rf bin
+aarch64:
+	@CROSS_CC="$(call find-cc,aarch64-linux-musl)"; \
+	$(MAKE) -j$(NPROC) quacky CC=$$CROSS_CC
 ```
 
-Whole-program compilation (all `.c` in one `gcc` invocation) is fine at this size, lets GCC
-inline across files, and avoids object-file rules per target. `SRC` is a `wildcard`, so
-`src/keys.c` (the key-name and US char→usage tables, 05 §4) is compiled with no Makefile
-change; drop a new `.c` into `src/` and it builds.
+Targets: `make native | x86_64 | aarch64 | armhf | x86 | riscv64` build one binary; `make all-build`
+builds all five; `make tarball` / `make all-tarball` package them; `make module` zips the phone
+archs (aarch64, armhf, x86_64, x86) with the `module/` assets into a KernelSU/Magisk zip;
+`make bump NEW=x.y.z` rewrites the version; `make debug-hardened` is the sanitizer build;
+`make clean` removes `output/`.
 
 ## 4. Portability checklist (32-bit is the enemy)
 
@@ -81,7 +94,8 @@ here because the GCC set already exists and is pinned.
 
 ## 6. Verifying a release
 ```
-for t in $TARGETS; do file bin/quacky-$t; done        # "statically linked", right arch
-bin/quacky-x86_64-linux-musl -d 0 tests/*.qk          # native run
-qemu-<arch>-static bin/quacky-<triple> ...             # others, see 08
+make all-build                                        # output/quacky-<arch> for all five
+for f in output/quacky-*; do file $$f; done           # "statically linked", right arch
+output/quacky-x86_64 -d 0 tests/cases/*.qk            # native run
+qemu-<arch>-static output/quacky-<arch> ...            # others, see 08
 ```

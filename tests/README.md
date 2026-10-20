@@ -3,7 +3,7 @@
 Golden-file tests driven by one POSIX shell script, no framework (08).
 
 ```sh
-make native          # build bin/quacky with ASan + UBSan
+make debug-hardened  # build output/quacky-hardened with ASan + UBSan
 tests/run.sh         # run everything
 ```
 
@@ -22,8 +22,8 @@ tests/run.sh         # run everything
 
 ```sh
 # on a phone or board over adb, against a static cross build
-QUACKY=/data/local/tmp/quacky-aarch64-linux-musl QK_SKIP_TIMING=1 sh run.sh
+QUACKY=/data/local/tmp/quacky-aarch64 QK_SKIP_TIMING=1 sh run.sh
 ```
 
-Timing measurements use the `-O2` x86_64 build from `make all` when present, since the ASan
+Timing measurements use the `-O2` x86_64 build from `make all-build` when present, since the ASan
 build's start-up cost would blur the bounds.

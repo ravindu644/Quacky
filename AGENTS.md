@@ -20,13 +20,20 @@ expensive commercial typing-automation hardware, and a small interpreter to stud
 
 ## Build
 
-Five static musl builds plus a native sanitizer build. Details and the Makefile skeleton are in
+Static musl builds for every target plus a host sanitizer build, all into `output/`. Bare `make`
+prints help. Details are in
 [docs/developer/07-build-and-cross.md](docs/developer/07-build-and-cross.md).
 
 - Toolchains are `~/toolchains/<triple>-cross/bin/<triple>-gcc`, all musl 1.2.5, for `x86_64`,
-  `i686`, `aarch64`, `arm-musleabihf` and `riscv64`.
-- `make` cross-compiles all five into `bin/`; `make native` builds with ASan+UBSan for the tests;
-  `make clean` wipes `bin/`.
+  `i686`, `aarch64`, `arm-musleabihf` and `riscv64`. `find-cc` also honours `MUSL_CROSS=<dir>`.
+- Per-arch targets `make native | x86_64 | aarch64 | armhf | x86 | riscv64` build one static binary
+  into `output/`. `make all-build` builds all five; `make tarball` / `make all-tarball` package them;
+  `make module` zips the phone archs into a KernelSU/Magisk module. `make clean` wipes `output/`.
+- **`make debug-hardened`** is the one that builds with ASan+UBSan (host glibc, `output/quacky-hardened`),
+  and the tests run it. `make native` is a plain static build, not instrumented.
+- Logs are kernel-style (`CC`/`LD`/`STRIP`); `V=1` shows full commands.
+- The version lives only in `src/include/quacky.h` (`QUACKY_VERSION`); `make bump NEW=x.y.z` rewrites
+  it and `module/module.prop`.
 - `SRC` is a `wildcard src/*.c`, so a new `.c` in `src/` is picked up with no Makefile edit. Headers
   live in `src/include/` and are found through `-Isrc/include`; there is no header-dependency
   tracking, so run `make clean` after editing a header.
@@ -46,9 +53,11 @@ Five static musl builds plus a native sanitizer build. Details and the Makefile 
 | `src/output.c` | the one place that touches the OS for output: fd, backends, clock, HID reports, held-key set |
 | `src/keys.c` | the single source of truth for key names and the US char to (modifier, usage) table |
 | `src/include/*.h` | the module headers, one per `src/` unit, on the build's `-Isrc/include` path |
+| `module/` | the KernelSU/Magisk module assets (`module.prop`, `customize.sh`, `uninstall.sh`) `make module` zips |
 | `docs/developer/` | the design guide, nine numbered docs |
 | `docs/` | the end-user documentation (language, keys, examples, getting started) |
 | `tests/` | `cases/*.qk` with `.out` (transcript) and `.hid` (report bytes), plus `run.sh` |
+| `output/` | all build artifacts (gitignored) |
 
 One fact worth keeping: `output.c` and `keys.c` are the only modules that know the HID wire format.
 Everything above them deals in characters, chords and key names, never bytes.

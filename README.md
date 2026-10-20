@@ -55,10 +55,10 @@ A full tour is in [docs/language.md](docs/language.md).
 ## Get started
 
 ```sh
-make native                        # build bin/quacky for this machine
-quacky script.qk                   # dry run: print a transcript, type nothing
-quacky --check script.qk           # parse only, report syntax errors
-quacky --hid /dev/hidg0 script.qk  # type for real over USB
+make native                              # build output/quacky for this machine
+./output/quacky script.qk                # dry run: print a transcript, type nothing
+./output/quacky --check script.qk        # parse only, report syntax errors
+./output/quacky --hid /dev/hidg0 script.qk  # type for real over USB
 ```
 
 The `/dev/hidg0` node comes from [USB Arsenal](https://github.com/ravindu644/USB-Arsenal); you do

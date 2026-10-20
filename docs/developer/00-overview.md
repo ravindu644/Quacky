@@ -83,7 +83,9 @@ quacky/
     include/      the module headers, one per src/ unit (built with -Isrc/include)
   tests/          cases/*.qk + *.out (transcript) + *.hid (report bytes), run.sh
   tools/          qtype, a typing-speed meter (not part of the shipped binary)
-  Makefile        five cross targets + native sanitizer build
+  module/         KernelSU/Magisk module assets that `make module` zips
+  Makefile        per-arch targets, tarball/module packaging, debug-hardened sanitizer build
+  output/         build artifacts (gitignored)
   docs/           end-user documentation (language, keys, examples, getting started)
   docs/developer/ this design guide
 ```

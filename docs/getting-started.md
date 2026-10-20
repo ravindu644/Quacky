@@ -14,13 +14,18 @@ Quacky program, rehearse it safely, then run it for real over USB.
 ## Build
 
 ```sh
-make            # cross-compile the static release binaries into bin/
-make native     # build one binary for this machine (with sanitizers), into bin/quacky
-make clean      # remove bin/
+make            # print the list of build targets
+make native     # build a static binary for this machine, into output/quacky
+make all-build  # cross-compile every supported architecture into output/
+make clean      # remove output/
 ```
 
-For trying things out, `make native` is the quickest. It produces `bin/quacky`. Run `make clean`
-after editing a header, since the build does not track header dependencies.
+For trying things out, `make native` is the quickest. It produces `output/quacky`. Run `make clean`
+after editing a header, since the build does not track header dependencies. `make` on its own just
+lists the targets.
+
+The examples below write `quacky` as the command. From a local build, run it as `./output/quacky`;
+installing the module (see `make module`) puts `quacky` on a phone's `PATH`.
 
 ## Your first script
 
