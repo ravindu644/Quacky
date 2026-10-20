@@ -46,8 +46,9 @@ static TokKind keyword_kind(const char *s, int len) {
         {"for", T_FOR}, {"in", T_IN}, {"func", T_FUNC}, {"end", T_END},
         {"return", T_RETURN}, {"break", T_BREAK}, {"continue", T_CONTINUE},
         {"const", T_CONST}, {"true", T_TRUE}, {"false", T_FALSE},
-        {"sleep", T_SLEEP}, {"type", T_TYPE}, {"hold", T_HOLD},
-        {"release", T_RELEASE}, {"delay", T_DELAY}, {"repeat", T_REPEAT},
+        {"sleep", T_SLEEP}, {"type", T_TYPE}, {"typeln", T_TYPELN},
+        {"hold", T_HOLD}, {"release", T_RELEASE}, {"delay", T_DELAY},
+        {"repeat", T_REPEAT},
     };
     for (size_t i = 0; i < sizeof kws / sizeof kws[0]; i++) {
         if (strlen(kws[i].kw) == (size_t)len && memcmp(s, kws[i].kw, (size_t)len) == 0)
@@ -205,7 +206,7 @@ Token lex_next(Lexer *lx) {
     if (is_ident_start(c)) {
         while (is_ident_cont(*lx->p)) advance(lx);
         Token t = mk(lx, keyword_kind(start, (int)(lx->p - start)), start, line, col);
-        if (t.kind == T_TYPE) lx->after_type = true;
+        if (t.kind == T_TYPE || t.kind == T_TYPELN) lx->after_type = true;
         return t;
     }
 
@@ -280,6 +281,7 @@ const char *tok_kind_name(TokKind k) {
         case T_FALSE:    return "T_FALSE";
         case T_SLEEP:    return "T_SLEEP";
         case T_TYPE:     return "T_TYPE";
+        case T_TYPELN:   return "T_TYPELN";
         case T_HOLD:     return "T_HOLD";
         case T_RELEASE:  return "T_RELEASE";
         case T_DELAY:    return "T_DELAY";

@@ -222,7 +222,7 @@ static void  parse_statement_into(Parser *p, Stmt ***stmts, int *n, int *cap);
 static void  desugar_for_into(Parser *p, Stmt ***stmts, int *n, int *cap);
 static Block *parse_block(Parser *p, const TokKind *closers, int nc);
 static Chord parse_chord_body(Parser *p, Token first);
-static void  parse_raw_line(Parser *p, Token raw, Stmt *s);
+static void  parse_raw_line(Parser *p, Token raw, Stmt *s, bool add_newline);
 static QStr *str_literal_value(Parser *p, Token t);
 
 typedef Expr *(*PrefixFn)(Parser *);
@@ -440,7 +440,7 @@ static Expr *subparse_expr(Parser *parent, Token raw, int at, const char *inner,
     if (!p_check(&sp, T_EOF)) perr(&sp, sp.cur, "unexpected text after the expression in '${...}'");
     return e;
 }
-static void parse_raw_line(Parser *p, Token raw, Stmt *s) {
+static void parse_raw_line(Parser *p, Token raw, Stmt *s, bool add_newline) {
     const char *r = raw.start;
     int len = raw.len;
     Seg *segs = NULL; int nseg = 0, segcap = 0;
@@ -489,7 +489,9 @@ static void parse_raw_line(Parser *p, Token raw, Stmt *s) {
         txt_push(&txt, &tn, &tcap, ch); i++;
     }
 
-    if (!stop) txt_push(&txt, &tn, &tcap, '\n');   /* output is the text plus a newline */
+    /* `typeln` ends the line with a newline (Enter); `type` types exactly the text.
+       \c suppresses the newline either way. */
+    if (!stop && add_newline) txt_push(&txt, &tn, &tcap, '\n');
     flush_text(p, &segs, &nseg, &segcap, &txt, &tn);
 
     s->type.segs = arena_dup(p, segs, (size_t)nseg * sizeof *segs);
@@ -628,11 +630,11 @@ static Stmt *parse_release(Parser *p) {
     return s;
 }
 static Stmt *parse_type(Parser *p) {
-    Token t = p->cur; p_advance(p);
+    Token t = p->cur; p_advance(p);     /* t.kind is T_TYPE or T_TYPELN */
     if (!p_check(p, T_RAW_LINE)) perr(p, p->cur, "expected the text of a 'type' line");
     Token raw = p->cur; p_advance(p);
     Stmt *s = mk_stmt(p, S_TYPE, t);
-    parse_raw_line(p, raw, s);
+    parse_raw_line(p, raw, s, t.kind == T_TYPELN);
     return s;
 }
 static Stmt *parse_ident_stmt(Parser *p) {
@@ -674,6 +676,7 @@ static Stmt *parse_statement(Parser *p) {
         case T_HOLD:     return parse_hold(p);
         case T_RELEASE:  return parse_release(p);
         case T_TYPE:     return parse_type(p);
+        case T_TYPELN:   return parse_type(p);
         case T_IDENT:    return parse_ident_stmt(p);
         default:         perr(p, t, "expected a statement");
     }
