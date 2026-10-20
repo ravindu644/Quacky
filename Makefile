@@ -13,12 +13,13 @@ CWARN   := -Wall -Wextra -Wshadow -Wconversion -Wvla -Werror
 LDFLAGS := -static -s -Wl,--gc-sections
 
 .DEFAULT_GOAL := help
-.PHONY: help all native clean
+.PHONY: help all native qtype clean
 
 help:
 	@echo 'Quacky build targets:'
 	@echo '  make all       cross-compile the five static musl binaries into bin/'
 	@echo '  make native    host build with ASan+UBSan for tests (bin/quacky)'
+	@echo '  make qtype     host build of the typing-speed meter (tools/qtype)'
 	@echo '  make clean     remove bin/'
 
 all: $(TARGETS:%=bin/quacky-%)
@@ -28,6 +29,11 @@ bin/quacky-%: $(SRC) $(HDR) | bin
 
 native: $(SRC) $(HDR) | bin
 	gcc $(CSTD) -O0 -g -fsanitize=address,undefined $(CWARN) $(SRC) -o bin/quacky
+
+# A host-only companion (termios), built with the host cc, kept out of $(SRC).
+qtype: tools/qtype
+tools/qtype: tools/qtype.c
+	cc -O2 -Wall -Wextra -Wconversion -o $@ tools/qtype.c
 
 bin:
 	mkdir -p bin
