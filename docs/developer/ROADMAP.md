@@ -56,19 +56,20 @@ Tick a box only when the item is implemented and verified as described in its ph
 - [x] `type` raw mode: the `after_type` bit emits the rest of the line as `T_RAW_LINE`
 
 ## Phase 2. Parser and AST (02)
-- [ ] Recursive descent over statements, `skip_seps`, the terminator rule (newline / `;` /
+- [x] Recursive descent over statements, `skip_seps`, the terminator rule (newline / `;` /
       block closer)
-- [ ] Pratt expressions: the precedence enum, the `rules[]` table, `&&`/`||` as their own
+- [x] Pratt expressions: the precedence enum, the `rules[]` table, `&&`/`||` as their own
       short-circuit nodes; cap expression nesting at 256
-- [ ] Statement dispatch: assignment vs call vs chord by the first two tokens and a `keys.c`
+- [x] Statement dispatch: assignment vs call vs chord by the first two tokens and a `keys.c`
       lookup (01 grammar note)
-- [ ] `if`/`elif`/`else`/`fi` chain, `while`, `for` desugared to `while`, `func` (top level
+- [x] `if`/`elif`/`else`/`fi` chain, `while`, `for` desugared to `while`, `func` (top level
       only); misplaced `return`/`break`/`continue` are syntax errors via `loop_depth`/`in_func`
-- [ ] `type` raw line into segments: escape decoding, `$name`, `${expr}` sub-lexer, `\c`
-- [ ] Chords: `parse_chord` resolving names/letters/digits into a `Chord {mod, usages, n}`;
+- [x] `type` raw line into segments: escape decoding, `$name`, `${expr}` sub-lexer, `\c`
+      (precise source-column mapping for errors inside `${...}` is deferred, noted in `parse.c`)
+- [x] Chords: `parse_chord` resolving names/letters/digits into a `Chord {mod, usages, n}`;
       `hold`/`release`/`release all`; `delay`/`repeat` as expr statements; `unknown key` and
       `too many keys in a chord` as syntax errors
-- [ ] The whole AST arena-allocated; `for` and `elif` never appear as node kinds
+- [x] The whole AST arena-allocated; `for` and `elif` never appear as node kinds
 
 ## Phase 3. Values and strings (04)
 - [ ] `Value` union; `QStr` refcount with arena literals immortal (`rc = -1`)
@@ -90,11 +91,12 @@ Tick a box only when the item is implemented and verified as described in its ph
 - [ ] Hoisting of `func` declarations, startup, `SIGPIPE` ignore
 
 ## Phase 5. Key tables (`keys.c`, 02 §4.4, 05 §4)
-- [ ] Key-name table: modifiers with their bits and aliases, named keys with their usages,
-      `endkey`; `key_lookup(name)`
-- [ ] US char → `{modifier, usage}` table: letters, digits, shifted symbols with the Shift bit,
+- [x] Key-name table: modifiers with their bits and aliases, named keys with their usages,
+      `endkey`; `key_lookup(name)` (landed early in Phase 2; the parser needs it to resolve chords)
+- [x] US char → `{modifier, usage}` table: letters, digits, shifted symbols with the Shift bit,
       and `\n` → enter, `\t` → tab, `\b` → backspace; `char_key(codepoint)`
-- [ ] One source of truth: the parser and the output module both call these
+- [ ] One source of truth: the parser and the output module both call these (parser done; the
+      output module arrives in Phase 6)
 
 ## Phase 6. Output module (05)
 - [ ] `Output` state; open per mode (`--hid` device `O_WRONLY`; `-o` file `O_APPEND|O_CREAT`;
@@ -152,6 +154,25 @@ Tick a box only when the item is implemented and verified as described in its ph
       board or phone, covering `type`, chords, and `hold`/`release`
 
 ## Status log
+- 2026-10-20: Phase 2 landed, and the `keys.c` lookups with it. Added `src/value.h` (the `Str`
+  slice), `src/keys.{c,h}` (the modifier/named-key table and the full US char map, both pure
+  lookups), the AST types and `parse()` in `src/parse.{c,h}` (recursive-descent statements, a
+  Pratt expression parser with the C precedence table and short-circuit `&&`/`||`, `if`/`elif`/
+  `else` chained into nested `S_IF`, `for` desugared to a `while` with a unique hidden end
+  variable, `func` collected top-level with duplicate detection, `type` lines split into decoded
+  text and `$name`/`${expr}` interpolation segments, and chords resolved to `{mod, usages, n}` at
+  parse time). The Phase 1 `lexdump.c` was replaced by a temporary `src/astdump.c` that
+  pretty-prints the tree. The parser forced `keys.c` to arrive now, so Phase 5's two lookup
+  tables are implemented and ticked; only the "output module also calls these" item waits for
+  Phase 6. One deferral: errors inside `${...}` report against the extracted expression snippet
+  rather than the original source column (noted in `parse.c`). Checked: `make native` and an
+  `i686` cross build compile warning-free under the pinned `-Werror`/`-Wconversion` flags; the
+  AST dump shows correct precedence (`a & b == 0` parses as `a & (b == 0)`), `for`/`elif`
+  desugaring, interpolation, and chord resolution, and `enter = 5` stays an assignment; every
+  syntax-class error (break/continue/return placement, `func` nesting, duplicate `func`,
+  unbalanced `${`, unknown key, too many keys, bad escape, deep nesting, unterminated string)
+  exits 2 with a caret and no dump; the banned-words grep over `docs README.md src` is clean and
+  nothing new uses an em-dash.
 - 2026-10-20: Phase 0 and Phase 1 landed. Added `src/parse.{c,h}` (the arena and the shared
   diagnostics, `print_diagnostic` + `syntax_error`), `src/lex.{c,h}` (the full lexer: CRLF
   normalisation, slice tokens with precomputed line/col, keywords, decimal/hex/binary ints
