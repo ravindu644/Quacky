@@ -11,8 +11,8 @@ It is an educational, free and open-source project: a learning-friendly, no-cost
 expensive commercial typing-automation hardware, and a small, readable interpreter (lexer,
 Pratt parser, tree-walker, ~3 200 lines) to study.
 
-> The blueprint for the implementation lives in [`docs/developer/`](docs/developer/). No
-> interpreter code exists yet; this repository is the design.
+> The interpreter is implemented in [`src/`](src/) and runs; the design blueprint, kept in
+> sync, lives in [`docs/developer/`](docs/developer/).
 
 ## The language in one look
 
@@ -54,10 +54,22 @@ quacky -d 0 script.qk            # set the per-key tick in ms (default 5; 0 = as
 The transcript backend lets you rehearse a script safely before any key is pressed. A syntax
 error produces **no** output at all.
 
+## Measured speed
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/poster-dark.webp">
+    <img alt="Quacky speed lab: net WPM across USB poll intervals, the -d pacing range, burst versus sustained, clock accuracy, and the --fast rollover" src="docs/assets/poster-light.webp" width="900">
+  </picture>
+</p>
+
+Typed over USB HID into a desktop host at 100% accuracy on every run. The `qtype` meter, the
+method, and the raw sweep tables live in [`tools/README.md`](tools/README.md).
+
 ## Status
 
-Design stage. The interpreter targets x86_64, i686, aarch64, armhf and riscv64 as static musl
-binaries, 60–130 KB, with no dependency beyond libc. See
+Implemented and measured on hardware (above). The interpreter targets x86_64, i686, aarch64,
+armhf and riscv64 as static musl binaries, 60-130 KB, with no dependency beyond libc. See
 [`docs/developer/00-overview.md`](docs/developer/00-overview.md) for the pipeline and
 [`AGENTS.md`](AGENTS.md) for house rules.
 
