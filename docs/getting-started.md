@@ -91,6 +91,45 @@ shows on runs of distinct lowercase or unshifted characters. One caveat: it reli
 computer honouring the order of keys within a report, which Linux does and some other systems may not,
 so prefer `--fast` when correctness on an unknown host matters more than peak speed.
 
+## Recommended settings for everyday use
+
+The peak-speed modes are for benchmarks. In real use the limit is the program receiving the
+keystrokes, not Quacky: a browser text field falls behind around 2400 WPM, and even a native
+terminal can be overrun and drop input. So the goal for a working script is not raw speed, it is
+that every character lands. The default pacing is tuned for exactly that.
+
+For most scripts, use no speed flags and the default tick:
+
+```sh
+quacky --hid /dev/hidg0 script.qk     # default mode, -d 5
+```
+
+That types at a steady, reliable cadence on any host. Reach for the knobs only when a specific
+target asks for it:
+
+| Target | Suggested flags | Why |
+|---|---|---|
+| General, or an unknown host | *(none)*, default `-d 5` | Full press-and-release per key, works everywhere. The safe default. |
+| A target that drops characters (a VM console, remote desktop, a field that validates as you type) | `-d 15` or higher | A slower cadence gives the receiver time to keep up. Raise it until the input is clean. |
+| A fast local target (a native terminal or editor on the same machine) | `--fast -d 2`, or `--fast -d 0` | `--fast` only adds speed once `-d` is no longer the limit, so pair it with a small or zero tick. |
+| A benchmark on a known Linux host | `--ultra -d 0` | Peak numbers only. Not for real scripts; see the `--fast` and `--ultra` notes above. |
+
+About the two speed flags: with the default `-d 5`, `--fast` and `--ultra` make little practical
+difference, because the per-key pause, not the number of reports, sets the pace. They only pull
+ahead at a very small or zero `-d`, which is also where a host is most likely to miss keys. For
+everyday automation, leave them off.
+
+Pace between actions, not only between keys:
+
+- Start a script with a `sleep` when you need a moment to focus the right window first, for example
+  `sleep 2000` to switch windows after launching.
+- Add a `sleep` after an action the host needs time to react to: opening a run dialog, launching an
+  app, loading a page. `type notepad\n` then `sleep 500` is far more reliable than typing into a
+  window that is not ready yet.
+- Use the `delay` statement (off by default) to add a fixed gap after *every* statement when a whole
+  routine needs room to breathe, instead of inflating `-d`. `-d` paces individual keys; `delay`
+  paces steps.
+
 ## Exit codes
 
 | Code | Meaning |
