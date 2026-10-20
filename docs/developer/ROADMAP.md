@@ -121,22 +121,23 @@ Tick a box only when the item is implemented and verified as described in its ph
       file writes the expected bytes; `astdump.c` replaced by `main.c`
 
 ## Phase 8. Build and cross-compilation (07)
-- [ ] Makefile: the five musl cross targets and the native ASan+UBSan build; bare `make` prints
+- [x] Makefile: the five musl cross targets and the native ASan+UBSan build; bare `make` prints
       help
-- [ ] `-Werror` clean on all five toolchains, including `-Wconversion` on the 32-bit ones
-- [ ] Static binaries verified with `file`, sizes in the 60 to 130 KB range
-- [ ] `qemu-user-static` installed; the golden suite runs on i686 and armhf first
+- [x] `-Werror` clean on all five toolchains, including `-Wconversion` on the 32-bit ones
+- [x] Static binaries verified with `file`, sizes in the 60 to 130 KB range (73 to 129 KB)
+- [x] Cross runs done on real hardware instead of qemu: the golden suite passes on the aarch64
+      phone and, via its 32-bit ABI, on the armhf binary too (the 32-bit runtime check)
 
 ## Phase 9. Testing (08)
-- [ ] `tests/run.sh`: transcript `cmp`, `.hid` byte `cmp` (writing `--hid` to a regular file),
+- [x] `tests/run.sh`: transcript `cmp`, `.hid` byte `cmp` (writing `--hid` to a regular file),
       error stderr+exit compare
-- [ ] Golden cases: arith, precedence, strings, control, funcs, type_escapes, comments, keys
-- [ ] `.hid` byte-capture for the keys case (chords, hold/release, shifted characters)
-- [ ] Error cases: one per catalogue entry plus the syntax errors, including the keystroke ones
-- [ ] `--check` run over every case (clean on good ones, exit 2 and no output on bad ones)
-- [ ] Timing tests on the native build: 100 characters at `-d 20`, sleep-then-type lands on
+- [x] Golden cases: arith, precedence, strings, control, funcs, type_escapes, comments, keys
+- [x] `.hid` byte-capture for the keys case (chords, hold/release, shifted characters)
+- [x] Error cases: one per catalogue entry plus the syntax errors, including the keystroke ones
+- [x] `--check` run over every case (clean on good ones, exit 2 and no output on bad ones)
+- [x] Timing tests on the native build: 100 characters at `-d 20`, sleep-then-type lands on
       time, the 500-character drift test
-- [ ] Golden suite under ASan+UBSan; the byte-mutation fuzzer asserting exit in {0,1,2}
+- [x] Golden suite under ASan+UBSan; the byte-mutation fuzzer asserting exit in {0,1,2}
 
 ## Phase 10. Real HID verification (needs a USB Arsenal gadget)
 - [ ] Dry-run transcript of a real script reads correctly before anything types
@@ -158,6 +159,15 @@ Tick a box only when the item is implemented and verified as described in its ph
       board or phone, covering `type`, chords, and `hold`/`release`
 
 ## Status log
+- 2026-10-20: Phases 8 and 9 landed. Added `tests/` (one POSIX `run.sh` plus `cases/*.qk` with
+  `.out` transcript goldens, `keys.hid` captured report bytes, and `errors/`, `errors_hid/` with
+  `.err` exit-code-and-stderr goldens) covering every row of the 08 table; the suite also runs
+  the timing and drift tests and a byte-mutation fuzzer. All 48 checks pass on the native
+  ASan+UBSan build. qemu was not needed: `make all` built the five static musl binaries (73 to
+  129 KB, verified with `file`), and the golden suite passes on the aarch64 phone over adb and,
+  through its 32-bit ABI, on the armhf binary, which is the real-hardware 32-bit runtime check.
+  One fix fell out of the sleep timing test: `out_sleep_ms` no longer adds a tick after the
+  pause (a key after `sleep 500` lands at 500 ms, not 520).
 - 2026-10-20: Phases 4, 6 and 7 landed together (the evaluator needs the output module, whose
   open modes need the CLI), so the interpreter now runs for real. Added `src/eval.{c,h}` (the
   tree-walker: 64-bucket FNV-1a frames, two-level scope, the spec §3 type matrix, string
