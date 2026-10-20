@@ -1,58 +1,66 @@
 # Quacky
 
 Quacky is a tiny scripting language, and a single static C11 interpreter for it, that reads a
-human-readable script and writes USB HID keyboard reports to `/dev/hidgX`. The computer on the
-other end of the cable sees an ordinary keyboard typing text and key combinations at supersonic
-speed. The gadget node itself is provided by the companion
-[USB Arsenal](https://github.com/ravindu644/USB-Arsenal) project, which owns the USB side
-(configfs, the controller, the device identity); Quacky only speaks keyboard.
+human-readable script and types it on another computer over USB. You write what to type and which
+keys to press; Quacky turns that into USB HID keyboard reports, and the machine on the other end of
+the cable sees an ordinary keyboard typing text and key combinations, very fast.
 
-It is an educational, free and open-source project: a learning-friendly, no-cost alternative to
-expensive commercial typing-automation hardware, and a small, readable interpreter (lexer,
-Pratt parser, tree-walker, ~3 200 lines) to study.
+**One static binary, around 60 to 130 KB, with no dependency beyond libc**, and about 2,100 lines of
+C you can read in an afternoon: a lexer, a Pratt parser, a tree-walking evaluator, and one module
+that talks to the keyboard. It is built to be learned from as much as used.
 
-> The interpreter is implemented in [`src/`](src/) and runs; the design blueprint, kept in
-> sync, lives in [`docs/developer/`](docs/developer/).
+## Why
+
+A commercial typing-automation gadget costs well over $100, yet the microcontroller that does the
+work inside one costs under $10. Meanwhile the phone already in your pocket is a full USB device:
+every Android phone runs the Linux kernel, and its USB-C port is dual-role, so with the kernel's USB
+gadget support it can present itself to a computer as a keyboard. Quacky is the free, educational
+alternative that runs on hardware you already own. The USB side is handled by the companion
+[USB Arsenal](https://github.com/ravindu644/USB-Arsenal) project; Quacky only speaks keyboard.
+
+## What you get
+
+- **A readable interpreter to study.** A lexer, Pratt parser, tree-walker and output module, small
+  enough to read end to end, with a design guide in [`docs/developer/`](docs/developer/).
+- **Rehearse before anything types.** A dry run prints a readable transcript of what the keyboard
+  would do, and `--check` validates a script without pressing a key. A syntax error types nothing.
+- **A real little language.** Integers, booleans and strings; `if`/`while`/`for`; functions;
+  variables and `const`; string interpolation inside typed text.
+- **Keyboard control, not just text.** Chords like `ctrl + alt + delete`, keys held down across
+  lines, repeats, and adjustable pacing.
+- **Portable and dependency-free.** Static musl binaries for x86_64, i686, aarch64, armhf and
+  riscv64, each tens of kilobytes, needing nothing but libc.
 
 ## The language in one look
 
 ```
-# open a run dialog on the host and type a line
 delay 50                 # from here on, pause 50 ms after every step
 super + r                # a chord: keys joined with + are pressed together
-sleep 400                # a one-shot pause
-type notepad
-enter
+sleep 400
+type notepad             # type presses Enter at the end, which launches it
 sleep 600
 type Hello from Quacky!
-enter
-hold shift               # keep a key down across the next lines
-home
-release shift            # (selects the line we just typed)
 ```
 
-- **`type`** writes literal text, with `$name` / `${expr}` interpolation.
-- **Chords** are key words joined with `+` and pressed together: `enter`, `ctrl + c`,
-  `ctrl + alt + delete`, `super + r`.
+- **`type`** writes literal text, with `$name` and `${expr}` interpolation.
+- **Chords** are keys joined with `+` and pressed together: `enter`, `ctrl + c`, `super + r`.
 - **`hold` / `release`** keep keys down across later lines; **`delay`** sets a default pause,
   **`sleep`** pauses once, **`repeat N`** re-runs the previous action.
-- Variables, `const`, integer/boolean/string expressions, `if/elif/else/fi`, `while`, `for`,
-  and `func` round out a small shell-and-Python-flavoured language with no indentation.
 
-Full specification: [`docs/developer/01-language-spec.md`](docs/developer/01-language-spec.md).
+A full tour is in [docs/language.md](docs/language.md).
 
-## Running a script
+## Get started
 
 ```sh
-quacky script.qk                 # dry run: print a readable transcript of what it would do
-quacky --check script.qk         # parse only; report any syntax errors, type nothing
-quacky --hid /dev/hidg0 script.qk  # the real thing: write HID reports to the keyboard node
-quacky -o out.txt script.qk      # transcript to a file
-quacky -d 0 script.qk            # set the per-key tick in ms (default 5; 0 = as fast as possible)
+make native                        # build bin/quacky for this machine
+quacky script.qk                   # dry run: print a transcript, type nothing
+quacky --check script.qk           # parse only, report syntax errors
+quacky --hid /dev/hidg0 script.qk  # type for real over USB
 ```
 
-The transcript backend lets you rehearse a script safely before any key is pressed. A syntax
-error produces **no** output at all.
+The `/dev/hidg0` node comes from [USB Arsenal](https://github.com/ravindu644/USB-Arsenal); you do
+not need it for a dry run. See [docs/getting-started.md](docs/getting-started.md) for the full walk
+through.
 
 ## Measured speed
 
@@ -63,18 +71,23 @@ error produces **no** output at all.
   </picture>
 </p>
 
-Typed over USB HID into a desktop host at 100% accuracy on every run. The `qtype` meter, the
-method, and the raw sweep tables live in [`tools/README.md`](tools/README.md).
+Typed over USB HID into a desktop host at 100% accuracy on every run. The `qtype` meter, the method
+and the raw sweep tables live in [`tools/README.md`](tools/README.md).
 
-## Status
+## Documentation
 
-Implemented and measured on hardware (above). The interpreter targets x86_64, i686, aarch64,
-armhf and riscv64 as static musl binaries, 60-130 KB, with no dependency beyond libc. See
-[`docs/developer/00-overview.md`](docs/developer/00-overview.md) for the pipeline and
-[`AGENTS.md`](AGENTS.md) for house rules.
+| Page | What it covers |
+|---|---|
+| [Getting started](docs/getting-started.md) | Build, run modes, the full command-line and exit-code reference. |
+| [The language](docs/language.md) | Every feature, with a runnable example for each. |
+| [Keys and chords](docs/keys.md) | Modifiers, named keys, chords, and holding keys down. |
+| [Examples](docs/examples.md) | Worked scripts from a one-liner to a complete routine. |
+| [Developer docs](docs/developer/) | How the interpreter is built, module by module. |
 
-Durability note: output is written in order to the kernel; Quacky does not call `fsync`, so the
-guarantee is "the bytes reached the kernel", not "landed on disk".
+## Credits
+
+The USB gadget side, the `/dev/hidgN` node Quacky writes to, is provided by
+[USB Arsenal](https://github.com/ravindu644/USB-Arsenal).
 
 ## License
 
