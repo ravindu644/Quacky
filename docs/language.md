@@ -173,6 +173,8 @@ typeln_file "notes.txt"        # type them, then press Enter
 - **The path is relative to the script**, not to wherever you run Quacky from (an absolute path is
   used as-is). So a script and its data file travel together.
 - **The file must be real text** (valid UTF-8, no NUL bytes); a binary file is rejected, not typed.
+  (A valid character your US layout cannot produce is still a run-time error while typing over
+  `--hid`, the same as with `type`.)
 - **A literal path is checked when you check the script.** `quacky --check script.qk` resolves and
   reads the file, so a missing or non-text file is reported then and nothing is ever typed.
 - **A computed path** (a variable or an expression, like `type_file base + "/notes.txt"`) can only

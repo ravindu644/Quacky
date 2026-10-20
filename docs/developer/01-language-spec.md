@@ -210,7 +210,9 @@ Enter" the default and keeps a hidden Enter out of `type`.
 `type_file expr` types the contents of a file verbatim (no escape decoding, no interpolation);
 `typeln_file` appends a trailing newline. The path `expr` is a string, resolved **relative to the
 running script's directory** (an absolute path is used as-is). The file must be properly encoded
-UTF-8 text with no NUL byte, so a binary file is rejected rather than typed.
+UTF-8 text with no NUL byte, so a binary file is rejected rather than typed. That confirms the file
+is text; whether each character has a US-layout key is the separate run-time check `type` already
+makes in the HID backend (§6), not a parse-time one.
 
 Resolution and validation happen in two places, keyed on whether the path is a compile-time
 constant:
