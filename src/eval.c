@@ -410,7 +410,8 @@ static Status exec_stmt(Interp *I, Stmt *s) {
             if (!I->last_action) return rt_error(I, s->line, s->col, "repeat with no preceding action");
             Stmt *action = I->last_action;
             for (int64_t k = 0; k < n; k++) {
-                Status r = exec_stmt(I, action);            /* re-runs the action; keeps last_action */
+                if (k > 0) out_post_statement(I->out);       /* each re-run is its own step for `delay` */
+                Status r = exec_stmt(I, action);             /* re-runs the action; keeps last_action */
                 if (r != ST_OK) return r;
             }
             break;
