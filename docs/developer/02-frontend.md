@@ -231,17 +231,22 @@ in the frontend at all (chibicc allocates with `calloc` and never frees, `tokeni
 go one step further and avoid `malloc` churn).
 
 ```c
-typedef struct Chunk { struct Chunk *next; size_t used, cap; char data[]; } Chunk;
+typedef struct Chunk { struct Chunk *next; size_t used, cap; max_align_t data[]; } Chunk;
 typedef struct { Chunk *head; } Arena;
 
 void *arena_alloc(Arena *a, size_t n) {
     size_t align = _Alignof(max_align_t);              // <stddef.h>, C11
     n = (n + align - 1) & ~(align - 1);
     if (!a->head || a->head->cap - a->head->used < n) new_chunk(a, n > 64*1024 ? n : 64*1024);
-    void *p = a->head->data + a->head->used; a->head->used += n; return p;
+    void *p = (char *)a->head->data + a->head->used; a->head->used += n; return p;
 }
 ```
 
+- `data` is a flexible array of `max_align_t`, not of `char`. A `char data[]` member sits at an
+  8-byte offset inside the chunk, so on a target whose `max_align_t` is 16 bytes (x86_64) the
+  first allocation would come back only 8-aligned. Typing the region as `max_align_t[]` makes it
+  start suitably aligned for any value, and rounding `n` is then all that is needed. `used`/`cap`
+  stay byte counts, so the returned pointer casts through `char *`.
 - Growable arrays during parsing (statement lists, args): build in a small `malloc`ed scratch vector, then copy the final array into the arena and free the scratch. Keeps the arena free of dead space.
 - Out of memory: print and `exit(1)` (picol `xrealloc`, `picol.c:39-46`). No recovery path.
 - `_Alignof(max_align_t)` requires `<stddef.h>`; verified to compile on all five toolchains including GCC 9.4.

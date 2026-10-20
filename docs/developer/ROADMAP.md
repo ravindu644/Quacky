@@ -36,23 +36,24 @@ Tick a box only when the item is implemented and verified as described in its ph
       build, testing, references
 - [x] `AGENTS.md`, `README.md`, and the project's framing and wording rules
 - [x] External reference material removed; no forbidden words in the kept files
-- [ ] Repo scaffolding: `src/` with the seven `.c`/`.h` stubs from 00, `tests/`, a `.gitignore`
-      that ignores `bin/` and `research/`
-- [ ] Arena bump allocator, freed once at exit (02 §6)
-- [ ] Diagnostics plumbing shared by both error classes: `print_diagnostic(file, src, line,
-      col, msg)` with the caret line, `rt_error`, `syntax_error`, the exit codes (06)
+- [x] Repo scaffolding: `src/` (the files Phase 1 needs, not seven empty stubs, per INIT), a
+      `tests/` placeholder, a `.gitignore` that ignores `bin/` and `research/`
+- [x] Arena bump allocator, freed once at exit (02 §6)
+- [x] Diagnostics plumbing shared by both error classes: `print_diagnostic(file, src, line,
+      col, msg)` with the caret line, `syntax_error`, the exit codes (06); `rt_error` waits for
+      Phase 4 (it needs `Interp`)
 
 ## Phase 1. Lexer (02)
-- [ ] Read the whole file, NUL-terminate, normalise CRLF to LF, keep the filename; tokens are
+- [x] Read the whole file, NUL-terminate, normalise CRLF to LF, keep the filename; tokens are
       slices into this buffer
-- [ ] Token kinds and `Token {kind, start, len, line, col}`; line/col precomputed
-- [ ] Identifiers and keywords (length + `memcmp`), including `hold`/`release`/`delay`/`repeat`
-- [ ] Integers (decimal, `0x`, `0b`) range-checked to `INT64_MAX`; booleans
-- [ ] Strings to the closing quote on one line (escape decoding deferred to the parser)
-- [ ] Line comment `#` to end of line, block comment `#[ … ]#` with the unclosed error
-- [ ] Operators and punctuation, two-character tokens greedy (`&&`, `||`, `==`, `!=`, `<=`,
+- [x] Token kinds and `Token {kind, start, len, line, col}`; line/col precomputed
+- [x] Identifiers and keywords (length + `memcmp`), including `hold`/`release`/`delay`/`repeat`
+- [x] Integers (decimal, `0x`, `0b`) range-checked to `INT64_MAX`; booleans
+- [x] Strings to the closing quote on one line (escape decoding deferred to the parser)
+- [x] Line comment `#` to end of line, block comment `#[ … ]#` with the unclosed error
+- [x] Operators and punctuation, two-character tokens greedy (`&&`, `||`, `==`, `!=`, `<=`,
       `>=`, `<<`, `>>`, `..`), and `+`
-- [ ] `type` raw mode: the `after_type` bit emits the rest of the line as `T_RAW_LINE`
+- [x] `type` raw mode: the `after_type` bit emits the rest of the line as `T_RAW_LINE`
 
 ## Phase 2. Parser and AST (02)
 - [ ] Recursive descent over statements, `skip_seps`, the terminator rule (newline / `;` /
@@ -151,6 +152,21 @@ Tick a box only when the item is implemented and verified as described in its ph
       board or phone, covering `type`, chords, and `hold`/`release`
 
 ## Status log
+- 2026-10-20: Phase 0 and Phase 1 landed. Added `src/parse.{c,h}` (the arena and the shared
+  diagnostics, `print_diagnostic` + `syntax_error`), `src/lex.{c,h}` (the full lexer: CRLF
+  normalisation, slice tokens with precomputed line/col, keywords, decimal/hex/binary ints
+  range-checked through `strtoull`, one-line strings with escapes left undecoded, line and
+  block comments, greedy two-character operators, and the `after_type` raw-line mode), a
+  temporary `src/lexdump.c` token-dump driver (carries `main()` and an arena self-check; to be
+  deleted in Phase 7), the `Makefile` (five musl cross targets, a native ASan+UBSan build, bare
+  `make` prints help), and a `tests/` placeholder. Fixed a latent arena alignment bug while
+  implementing it: the chunk's `data` region is now `max_align_t[]` rather than `char[]`, so
+  allocations are correctly aligned on x86_64 (02 §6 updated to match). Checked: `make native`
+  and an `i686` cross build both compile warning-free under the pinned `-Werror` flags; the dump
+  lexes every token kind, both comment forms, a `type` raw line and a bare `type`, `;` versus
+  newline separators, and reports unterminated strings, unclosed `#[`, out-of-range integers and
+  stray characters with a caret and exit 2; the banned-words grep over `docs README.md src` is
+  clean and nothing uses an em-dash.
 - 2026-10-20: Blueprint complete. The language was reoriented from a text typewriter into one
   that drives a USB HID keyboard: verb-less chords joined with `+`, `hold`/`release`,
   `delay`/`repeat`, and a dual output backend (readable transcript and real HID reports) with a
