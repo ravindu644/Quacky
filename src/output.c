@@ -105,6 +105,8 @@ static Status tag(Output *o, const char *verb, const Str *text, const char **err
 
 Status out_type(Output *o, const char *bytes, size_t len, const char **err) {
     size_t i = 0;
+    uint8_t cur_usage = 0;   /* --fast: the typed key still held from the previous char */
+    bool pressed = false;
     while (i < len) {
         unsigned char b = (unsigned char)bytes[i];
         int cplen; uint32_t cp;
@@ -127,18 +129,34 @@ Status out_type(Output *o, const char *bytes, size_t len, const char **err) {
         } else {
             CharKey ck = char_key((int)cp);
             if (!ck.ok) {
+                if (pressed) write_held(o, err);   /* do not leave a key reported as held */
                 snprintf(o->errbuf, sizeof o->errbuf, "no US-layout key for U+%04" PRIX32, cp);
                 *err = o->errbuf;
                 return ST_ERR;
             }
             uint8_t usage = ck.usage;
-            Status s = write_report(o, ck.mod, &usage, 1, err);   /* press */
-            if (s != ST_OK) return s;
-            s = write_held(o, err);                                /* release back to the held set */
-            if (s != ST_OK) return s;
+            if (o->fast) {
+                /* Roll one key into the next: a report that drops the old usage
+                   and adds the new one is a release and a press in a single poll.
+                   Only a repeat of the same usage needs its own release first, so
+                   the host sees a fresh down-edge (its own key never lifted). */
+                if (pressed && usage == cur_usage) {
+                    Status s = write_held(o, err);
+                    if (s != ST_OK) return s;
+                }
+                Status s = write_report(o, ck.mod, &usage, 1, err);
+                if (s != ST_OK) return s;
+                cur_usage = usage; pressed = true;
+            } else {
+                Status s = write_report(o, ck.mod, &usage, 1, err);   /* press */
+                if (s != ST_OK) return s;
+                s = write_held(o, err);                                /* release back to the held set */
+                if (s != ST_OK) return s;
+            }
         }
         i += (size_t)cplen;
     }
+    if (pressed) return write_held(o, err);   /* release the last typed key (fast mode) */
     return ST_OK;
 }
 
