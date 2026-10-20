@@ -76,6 +76,16 @@ bool out_open(Output *o, OutMode mode, const char *path, int64_t tick_ms) {
 }
 
 void out_close(Output *o) {
+    /* Never leave the host with a key stuck down: a script that ends (or dies on
+       a runtime error) while something is held gets one all-up report. Best
+       effort; a dead gadget has nothing left to release. Signals still skip this (05 §7). */
+    bool held = o->held_mod != 0;
+    for (int k = 0; k < 6; k++) held = held || o->held_key[k] != 0;
+    if (o->mode == OUT_HID && o->fd >= 0 && held) {
+        static const uint8_t up[8] = {0};
+        const char *err;
+        (void)write_bytes(o, up, sizeof up, &err);
+    }
     if (o->fd >= 0 && o->fd != STDOUT_FILENO) close(o->fd);
     o->fd = -1;
 }
