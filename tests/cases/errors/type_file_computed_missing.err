@@ -1,4 +1,4 @@
 1
-cases/errors/type_file_computed_missing.qk:2:1: error: cannot open "cases/errors/no_such_file.txt": No such file or directory
+cases/errors/type_file_computed_missing.qk:2:11: error: cannot open "cases/errors/no_such_file.txt": No such file or directory
   type_file p
-  ^
+            ^
