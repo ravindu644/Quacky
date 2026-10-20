@@ -1,6 +1,6 @@
 id=quacky
 name=Quacky
-version=v1.0.0
-versionCode=1000
+version=v1.1.0
+versionCode=1100
 author=ravindu644
 description=A tiny scripting language that types text and key combinations over USB HID.
