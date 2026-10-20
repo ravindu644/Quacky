@@ -1,4 +1,4 @@
 1
-cases/errors/div_zero.qk:1:3: error: division by zero
+cases/errors/div_zero.qk:1:10: error: division by zero
   type ${5 / 0}
-    ^
+           ^

@@ -108,10 +108,6 @@ typedef struct {
     int         nfuncs, funcs_cap;
     int         for_counter;    /* makes hidden loop-end names unique */
     bool        check;          /* --check mode: warn on things we cannot check */
-    /* Set only on the throwaway sub-parser for a `${...}` body, so its errors
-       map back to the original source instead of the extracted snippet. */
-    const char *origin_src;
-    int         origin_line, origin_col;
 } Parser;
 
 static void *xrealloc(void *ptr, size_t n) {
@@ -135,14 +131,7 @@ static _Noreturn void perr(Parser *p, Token t, const char *fmt, ...)
 static _Noreturn void perr(Parser *p, Token t, const char *fmt, ...) {
     char msg[256];
     va_list ap; va_start(ap, fmt); vsnprintf(msg, sizeof msg, fmt, ap); va_end(ap);
-    if (p->origin_src) {
-        /* A `${...}` body is one physical line (a raw line carries no newline),
-           so the snippet token is always on line 1 and only the column shifts. */
-        print_diagnostic(p->filename, p->origin_src, p->origin_line,
-                         p->origin_col + (t.col - 1), msg);
-    } else {
-        print_diagnostic(p->filename, p->src, t.line, t.col, msg);
-    }
+    print_diagnostic(p->filename, p->src, t.line, t.col, msg);
     exit(2);
 }
 
@@ -436,18 +425,18 @@ static QStr *str_literal_value(Parser *p, Token t) {
 }
 static Expr *subparse_expr(Parser *parent, Token raw, int at, const char *inner, int innerlen) {
     /* Copy the ${...} body to a NUL-terminated arena buffer and run a fresh
-       lexer+parser over it. origin_* makes errors inside the body report at the
-       real source column: the body starts `at` bytes into the raw slice, whose
-       first byte is at raw.col, so column raw.col + at. */
+       lexer+parser over it. The lexer starts at the body's real position (it is
+       one physical line: `at` bytes into the raw slice, whose first byte is at
+       raw.col) and diagnostics print against the real source, so every node and
+       error, syntax or run-time, points into the script, not the snippet. */
     char *buf = arena_alloc(parent->a, (size_t)innerlen + 1);
     memcpy(buf, inner, (size_t)innerlen);
     buf[innerlen] = '\0';
     Parser sp;
     memset(&sp, 0, sizeof sp);
-    sp.a = parent->a; sp.filename = parent->filename; sp.src = buf;
-    sp.origin_src = parent->src; sp.origin_line = raw.line; sp.origin_col = raw.col + at;
-    sp.lx.filename = parent->filename; sp.lx.src = buf; sp.lx.p = buf;
-    sp.lx.line = 1; sp.lx.col = 1; sp.lx.after_type = false;
+    sp.a = parent->a; sp.filename = parent->filename; sp.src = parent->src;
+    sp.lx.filename = parent->filename; sp.lx.src = parent->src; sp.lx.p = buf;
+    sp.lx.line = raw.line; sp.lx.col = raw.col + at; sp.lx.after_type = false;
     sp.cur = lex_next(&sp.lx);
     Expr *e = parse_expr(&sp);
     if (!p_check(&sp, T_EOF)) perr(&sp, sp.cur, "unexpected text after the expression in '${...}'");
