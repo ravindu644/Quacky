@@ -1,0 +1,2 @@
+p = "no_such_file.txt"
+type_file p

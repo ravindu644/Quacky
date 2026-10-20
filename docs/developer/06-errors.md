@@ -4,12 +4,18 @@
 
 | Class | Detected by | Examples | Exit |
 |---|---|---|---|
-| **Syntax** | lexer/parser, before anything runs | unterminated string, `break` outside loop, `func` inside `if`, duplicate `func`, unbalanced `${`, unknown key name, too many keys in a chord | 2 |
-| **Runtime** | evaluator / output | undefined variable, type mismatch, `/ 0`, const reassignment, arity, recursion depth, unmappable `type` character, `release` of an unheld key, `repeat` with no action, output/`EPIPE` | 1 |
+| **Syntax** | lexer/parser, before anything runs | unterminated string, `break` outside loop, `func` inside `if`, duplicate `func`, unbalanced `${`, unknown key name, too many keys in a chord, a **literal** `type_file` path that is missing or not text | 2 |
+| **Runtime** | evaluator / output | undefined variable, type mismatch, `/ 0`, const reassignment, arity, recursion depth, unmappable `type` character, `release` of an unheld key, `repeat` with no action, a **computed** `type_file` path that is missing or not text, output/`EPIPE` | 1 |
 | Usage | `main` | unknown flag, unreadable script, cannot open `-o` file, `--hid` node will not open | 64 (`EX_USAGE`), 66 (`EX_NOINPUT`), 73 (`EX_CANTCREAT`), 74 (`EX_IOERR`) from `<sysexits.h>` |
 
 Exit 0 means the whole program ran. A syntax error therefore guarantees **no output was
 produced**, which matters for a tool whose output is append-only.
+
+`type_file` is read and validated at the phase that can know its path: a **literal** path is checked
+at parse time (so `--check` catches a bad file and it joins the syntax class), a **computed** path
+only at run time. The one non-fatal diagnostic is a `warning:` the parser prints under `--check`
+when it meets a computed `type_file` path it cannot check statically; it does not change the exit
+code.
 
 ## 2. Message format
 
@@ -82,6 +88,13 @@ panic-mode synchronisation is an upgrade, not a need.)
 | release unheld key | `release of key that is not held: 'X'` |
 | repeat no action | `repeat with no preceding action` |
 | output | `output error: <strerror>` |
+| type_file open | `cannot open "<path>": <strerror>` |
+| type_file not text | `file "<path>" is not valid UTF-8 text` |
+| type_file too large | `file "<path>" is too large` |
+| computed path not str | `type_file path must be a string, got <t>` |
+
+The `type_file` file messages are raised at parse time for a literal path (exit 2) and at run time
+for a computed one (exit 1), through the same `textfile.c` loader.
 
 Syntax-class keystroke messages (raised before any output): `unknown key 'X'`,
 `too many keys in a chord (max 6)`.

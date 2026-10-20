@@ -47,6 +47,7 @@ static TokKind keyword_kind(const char *s, int len) {
         {"return", T_RETURN}, {"break", T_BREAK}, {"continue", T_CONTINUE},
         {"const", T_CONST}, {"true", T_TRUE}, {"false", T_FALSE},
         {"sleep", T_SLEEP}, {"type", T_TYPE}, {"typeln", T_TYPELN},
+        {"type_file", T_TYPE_FILE}, {"typeln_file", T_TYPELN_FILE},
         {"hold", T_HOLD}, {"release", T_RELEASE}, {"delay", T_DELAY},
         {"repeat", T_REPEAT},
     };
@@ -282,6 +283,8 @@ const char *tok_kind_name(TokKind k) {
         case T_SLEEP:    return "T_SLEEP";
         case T_TYPE:     return "T_TYPE";
         case T_TYPELN:   return "T_TYPELN";
+        case T_TYPE_FILE:   return "T_TYPE_FILE";
+        case T_TYPELN_FILE: return "T_TYPELN_FILE";
         case T_HOLD:     return "T_HOLD";
         case T_RELEASE:  return "T_RELEASE";
         case T_DELAY:    return "T_DELAY";

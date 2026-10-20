@@ -5,6 +5,7 @@
 #include "parse.h"
 #include "keys.h"
 #include "lex.h"
+#include "textfile.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -106,6 +107,7 @@ typedef struct {
     Func      **funcs;          /* scratch, copied to the arena at the end */
     int         nfuncs, funcs_cap;
     int         for_counter;    /* makes hidden loop-end names unique */
+    bool        check;          /* --check mode: warn on things we cannot check */
     /* Set only on the throwaway sub-parser for a `${...}` body, so its errors
        map back to the original source instead of the extracted snippet. */
     const char *origin_src;
@@ -142,6 +144,17 @@ static _Noreturn void perr(Parser *p, Token t, const char *fmt, ...) {
         print_diagnostic(p->filename, p->src, t.line, t.col, msg);
     }
     exit(2);
+}
+
+/* Non-fatal diagnostic: same one-line shape as an error, but it prints to stderr
+   and returns. Used under --check to flag something we could not statically
+   verify, such as a computed type_file path. */
+static void pwarn(Parser *p, Token t, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
+static void pwarn(Parser *p, Token t, const char *fmt, ...) {
+    char msg[256];
+    va_list ap; va_start(ap, fmt); vsnprintf(msg, sizeof msg, fmt, ap); va_end(ap);
+    fprintf(stderr, "%s:%d:%d: warning: %s\n", p->filename, t.line, t.col, msg);
 }
 
 static Str  tok_str(Token t) { return (Str){t.start, (size_t)t.len}; }
@@ -637,6 +650,35 @@ static Stmt *parse_type(Parser *p) {
     parse_raw_line(p, raw, s, t.kind == T_TYPELN);
     return s;
 }
+/* type_file / typeln_file: the path is an expression. A string literal is read
+   and validated here, so --check reports a bad file and nothing types (exit 2);
+   a computed path is read at run time instead, with a --check warning that we
+   could not check it. */
+static Stmt *parse_type_file(Parser *p, bool add_newline) {
+    Token t = p->cur; p_advance(p);     /* the type_file / typeln_file keyword */
+    Token pt = p->cur;                  /* where the path starts, for diagnostics */
+    Expr *pathe = parse_expr(p);
+    Stmt *s = mk_stmt(p, S_TYPE_FILE, t);
+    s->typefile.add_newline = add_newline;
+
+    if (pathe->kind == E_STR) {
+        /* A literal path: resolve, read and validate now so --check catches a bad
+           file and the script types nothing on failure. */
+        QStr *q = pathe->sval;
+        char errbuf[256];
+        char *buf = NULL; size_t len = 0;
+        if (!tf_load(p->filename, q->data, q->len, &buf, &len, errbuf, sizeof errbuf))
+            perr(p, pt, "%s", errbuf);
+        s->typefile.bytes = arena_dup(p, buf, len);
+        s->typefile.len = len;
+        free(buf);
+    } else {
+        s->typefile.path = pathe;
+        if (p->check)
+            pwarn(p, pt, "type_file path is not a literal; it is only checked when the script runs");
+    }
+    return s;
+}
 static Stmt *parse_ident_stmt(Parser *p) {
     Token name = p->cur; p_advance(p);     /* consume the identifier, then dispatch */
     if (p_check(p, T_ASSIGN)) {
@@ -677,6 +719,8 @@ static Stmt *parse_statement(Parser *p) {
         case T_RELEASE:  return parse_release(p);
         case T_TYPE:     return parse_type(p);
         case T_TYPELN:   return parse_type(p);
+        case T_TYPE_FILE:   return parse_type_file(p, false);
+        case T_TYPELN_FILE: return parse_type_file(p, true);
         case T_IDENT:    return parse_ident_stmt(p);
         default:         perr(p, t, "expected a statement");
     }
@@ -790,10 +834,10 @@ static void parse_func(Parser *p) {
     push_func(p, f);
 }
 
-Program *parse(Arena *a, const char *filename, char *src) {
+Program *parse(Arena *a, const char *filename, char *src, bool check) {
     Parser p;
     memset(&p, 0, sizeof p);
-    p.a = a; p.filename = filename; p.src = src;
+    p.a = a; p.filename = filename; p.src = src; p.check = check;
     lex_init(&p.lx, filename, src);
     p.cur = lex_next(&p.lx);
 

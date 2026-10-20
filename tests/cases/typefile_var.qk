@@ -1,0 +1,2 @@
+p = "typefile.txt"
+type_file p

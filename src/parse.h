@@ -68,7 +68,7 @@ typedef struct Expr {
 
 typedef enum {
     S_ASSIGN, S_CONST, S_IF, S_WHILE, S_RETURN, S_BREAK, S_CONTINUE,
-    S_SLEEP, S_TYPE, S_CALL, S_CHORD, S_HOLD, S_RELEASE, S_DELAY, S_REPEAT
+    S_SLEEP, S_TYPE, S_TYPE_FILE, S_CALL, S_CHORD, S_HOLD, S_RELEASE, S_DELAY, S_REPEAT
 } StmtKind;
 
 /* A chord resolved at parse time: modifier bits plus up to six key usages.
@@ -92,6 +92,9 @@ typedef struct Stmt {
         struct { Expr *cond; struct Block *body; } loop;                 /* S_WHILE */
         Expr *expr;                                                      /* S_RETURN (nullable), S_SLEEP, S_DELAY, S_REPEAT, S_CALL */
         struct { Seg *segs; int nsegs; bool stop_output; } type;         /* S_TYPE */
+        /* S_TYPE_FILE: a literal path is read and validated at parse time (bytes/len
+           set, path NULL); a computed path is read at run time (path set, bytes NULL). */
+        struct { const char *bytes; size_t len; Expr *path; bool add_newline; } typefile;
         Chord chord;                                                     /* S_CHORD, S_HOLD, S_RELEASE */
     };
 } Stmt;
@@ -102,6 +105,6 @@ typedef struct Program { Block *top; Func **funcs; int nfuncs; } Program;
 /* Lex and parse the whole source into one arena-allocated Program. A syntax
    error prints a diagnostic and exits 2 from inside; on success the returned
    tree is complete. `src` is normalised in place (CRLF to LF). */
-Program *parse(Arena *a, const char *filename, char *src);
+Program *parse(Arena *a, const char *filename, char *src, bool check);
 
 #endif

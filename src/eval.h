@@ -18,6 +18,7 @@ typedef struct {
     int      depth;             /* call depth, limit 200 */
     Value    ret;               /* parked return value */
     Stmt    *last_action;       /* last keystroke/type/chord stmt, for `repeat`; NULL if none */
+    const char *script_path;    /* the running script's path, for script-relative type_file */
     char     err[512];          /* runtime error message */
     int      err_line, err_col;
     Output  *out;               /* owns the fd, the clock, and the held-key set (05) */

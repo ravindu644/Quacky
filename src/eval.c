@@ -4,6 +4,7 @@
    or main consumes them. String ownership follows the five rules in 04 §2. */
 
 #include "eval.h"
+#include "textfile.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -311,6 +312,42 @@ static Status exec_type(Interp *I, Stmt *s) {
     return ST_OK;
 }
 
+static Status exec_type_file(Interp *I, Stmt *s) {
+    const char *err = NULL;
+    const char *bytes = s->typefile.bytes;   /* literal path: baked and validated at parse time */
+    size_t len = s->typefile.len;
+    char *tofree = NULL;
+
+    if (s->typefile.path) {
+        /* Computed path: resolve against the script's directory, read and
+           validate now. Any failure is a run-time error (exit 1), reported at
+           the path expression so the caret matches the literal case. */
+        Expr *pe = s->typefile.path;
+        Value v; Status st = eval_value(I, pe, &v);
+        if (st != ST_OK) return st;
+        if (v.type != VAL_STR) {
+            Status e = rt_error(I, pe->line, pe->col,
+                                "type_file path must be a string, got %s", vt_name(v.type));
+            val_release(v);
+            return e;
+        }
+        char errbuf[256];
+        char *buf = NULL; size_t n = 0;
+        bool ok = tf_load(I->script_path, v.s->data, v.s->len, &buf, &n, errbuf, sizeof errbuf);
+        val_release(v);
+        if (!ok) return rt_error(I, pe->line, pe->col, "%s", errbuf);
+        bytes = buf; len = n; tofree = buf;
+    }
+
+    Status r = ST_OK;
+    if (out_type(I->out, bytes, len, &err) != ST_OK)
+        r = rt_error(I, s->line, s->col, "%s", err);
+    else if (s->typefile.add_newline && out_type(I->out, "\n", 1, &err) != ST_OK)
+        r = rt_error(I, s->line, s->col, "%s", err);
+    free(tofree);
+    return r;
+}
+
 static Status exec_stmt(Interp *I, Stmt *s) {
     Status st = ST_OK;
     const char *err = NULL;
@@ -375,6 +412,7 @@ static Status exec_stmt(Interp *I, Stmt *s) {
             break;
         }
         case S_TYPE: st = exec_type(I, s); break;
+        case S_TYPE_FILE: st = exec_type_file(I, s); break;
         case S_CALL: {
             Value v; st = eval_expr(I, s->expr, &v);        /* a no-value return is fine for a call statement */
             if (st != ST_OK) return st;
@@ -400,7 +438,7 @@ static Status exec_stmt(Interp *I, Stmt *s) {
     /* `repeat` bookkeeping (03 §4.1): remember the last action; clear it on any
        other statement; `repeat` itself preserves it, so two in a row both work. */
     switch (s->kind) {
-        case S_TYPE: case S_CHORD: case S_HOLD: case S_RELEASE: I->last_action = s; break;
+        case S_TYPE: case S_TYPE_FILE: case S_CHORD: case S_HOLD: case S_RELEASE: I->last_action = s; break;
         case S_REPEAT: break;
         default: I->last_action = NULL;
     }

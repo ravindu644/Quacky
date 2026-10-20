@@ -28,6 +28,8 @@ alternative that runs on hardware you already own. The USB side is handled by th
   variables and `const`; string interpolation inside typed text.
 - **Keyboard control, not just text.** Chords like `ctrl + alt + delete`, keys held down across
   lines, repeats, and adjustable pacing.
+- **Type a whole file.** `type_file "notes.txt"` types a document verbatim, no escaping; a literal
+  path is validated by `--check` before anything types.
 - **Portable and dependency-free.** Static musl binaries for x86_64, i686, aarch64, armhf and
   riscv64, each tens of kilobytes, needing nothing but libc.
 

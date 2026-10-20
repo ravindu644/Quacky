@@ -1,0 +1,4 @@
+2
+cases/errors/syn_type_file_blob.qk:1:11: error: file "cases/errors/type_file_blob.bin" is not valid UTF-8 text
+  type_file "type_file_blob.bin"
+            ^

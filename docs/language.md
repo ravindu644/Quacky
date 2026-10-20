@@ -159,6 +159,26 @@ typeln col1\tcol2\tcol3        # a tab-separated line, then Enter
 typeln no Enter after this\c   # \c cancels typeln's trailing Enter
 ```
 
+### Typing a file
+
+To type a whole document, point `type_file` at it. The file's contents are typed **verbatim**: no
+escape decoding and no `$` interpolation, so a passage full of `$`, `\`, `#`, quotes, or even
+language keywords types exactly as written. `typeln_file` is the same but presses Enter at the end.
+
+```
+type_file "notes.txt"          # type the file's contents, no trailing Enter
+typeln_file "notes.txt"        # type them, then press Enter
+```
+
+- **The path is relative to the script**, not to wherever you run Quacky from (an absolute path is
+  used as-is). So a script and its data file travel together.
+- **The file must be real text** (valid UTF-8, no NUL bytes); a binary file is rejected, not typed.
+- **A literal path is checked when you check the script.** `quacky --check script.qk` resolves and
+  reads the file, so a missing or non-text file is reported then and nothing is ever typed.
+- **A computed path** (a variable or an expression, like `type_file base + "/notes.txt"`) can only
+  be checked when the script runs, since the path is not known until then. `--check` prints a
+  warning for it rather than reading the file.
+
 ## Pressing keys: chords
 
 A line that names keys joined with `+` presses them together and releases them, a "chord". A single

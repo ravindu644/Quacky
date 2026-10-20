@@ -141,3 +141,17 @@ ctrl + s               # save
 
 Rehearse it first with `quacky routine.qk`, read the transcript, and only then run it with
 `quacky --hid /dev/hidg0 routine.qk`.
+
+## 10. Typing a whole file
+
+For a long passage, keep the text in a file next to the script and type it in one line. The contents
+go out verbatim, so nothing inside needs escaping.
+
+```
+type_file "lorem.txt"      # type the file exactly, no trailing Enter
+typeln_file "lorem.txt"    # type it and press Enter at the end
+```
+
+The path is relative to the script, and `quacky --check script.qk` resolves and validates the file
+(it must be real UTF-8 text, not a binary blob) before anything is typed. See
+[language.md](language.md#typing-a-file) for the details.

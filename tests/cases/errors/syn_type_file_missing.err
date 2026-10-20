@@ -1,0 +1,4 @@
+2
+cases/errors/syn_type_file_missing.qk:1:11: error: cannot open "cases/errors/no_such_file.txt": No such file or directory
+  type_file "no_such_file.txt"
+            ^

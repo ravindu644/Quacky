@@ -29,7 +29,7 @@ and small interpreters work.
 
 ```
 if then elif else fi while do done for in func end return break continue
-const true false sleep type typeln hold release delay repeat
+const true false sleep type typeln type_file typeln_file hold release delay repeat
 ```
 
 ### Key names (contextual, not reserved)
@@ -57,6 +57,7 @@ statement   = assignment
             | "continue"
             | sleep_stmt
             | type_stmt
+            | type_file_stmt
             | chord_stmt
             | hold_stmt
             | release_stmt
@@ -84,6 +85,7 @@ func_decl   = "func" IDENT { IDENT } sep block "end" ;                (* top lev
 return_stmt = "return" [ expr ] ;
 sleep_stmt  = "sleep" expr ;                                          (* milliseconds *)
 type_stmt   = ( "type" | "typeln" ) RAW_LINE ;                        (* see §5 *)
+type_file_stmt = ( "type_file" | "typeln_file" ) expr ;              (* expr is a string path, §5 *)
 call_stmt   = IDENT "(" [ expr { "," expr } ] ")" ;
 
 block       = { sep } { statement { sep } } ;                         (* ends at the keyword that closes it *)
@@ -202,6 +204,30 @@ Enter" the default and keeps a hidden Enter out of `type`.
 - Output: `type` is exactly the text; `typeln` is the text + `\n`. A bare `type` emits nothing, a bare `typeln` emits just `\n`. The trailing newline is baked into the last text segment at parse time, so eval and output add nothing.
 - Each UTF-8 **code point** is one tick: write it with one `write(2)`, then sleep until the next deadline. Multi-byte characters are never split across ticks.
 - Interpolated values use `to_string` from §4.3.
+
+### 5.1 `type_file` and `typeln_file`
+
+`type_file expr` types the contents of a file verbatim (no escape decoding, no interpolation);
+`typeln_file` appends a trailing newline. The path `expr` is a string, resolved **relative to the
+running script's directory** (an absolute path is used as-is). The file must be properly encoded
+UTF-8 text with no NUL byte, so a binary file is rejected rather than typed.
+
+Resolution and validation happen in two places, keyed on whether the path is a compile-time
+constant:
+
+- A **literal** path (`type_file "notes.txt"`) is resolved, read and validated **at parse time**, by
+  the shared loader in `textfile.c`. A missing or non-text file is a parse-phase error: it exits 2
+  having typed nothing, and `--check` reports it, exactly like any other syntax error. The validated
+  bytes are baked into the arena, so evaluation only streams them.
+- A **computed** path (a variable or expression) is not known until the script runs, so it is
+  resolved and validated **at run time** (a failure is a run-time error, exit 1). Under `--check`
+  the parser emits a warning that the path could not be checked statically, then continues.
+
+```
+type_file "notes.txt"            (* checked by --check *)
+base = "/tmp"
+typeln_file base + "/notes.txt"  (* checked when it runs; --check warns *)
+```
 
 ## 6. Keystrokes and HID output
 

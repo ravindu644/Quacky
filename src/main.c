@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 
     char *src = read_file(script);
     Arena arena = {0};
-    Program *prog = parse(&arena, script, src);   /* a syntax error exits 2 from inside */
+    Program *prog = parse(&arena, script, src, check);   /* a syntax error exits 2 from inside */
 
     if (check) { arena_free(&arena); free(src); return 0; }
 
@@ -86,6 +86,7 @@ int main(int argc, char **argv) {
 
     Interp I; memset(&I, 0, sizeof I);
     I.out = &out;
+    I.script_path = script;   /* for script-relative type_file resolution */
     Status s = run(&I, prog);
 
     int code = 0;

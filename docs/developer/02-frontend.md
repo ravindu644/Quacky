@@ -71,6 +71,10 @@ after emitting T_TYPE or T_TYPELN:
 - The lexer needs one bit of state: `after_type`. Set it when `T_TYPE` or `T_TYPELN` is emitted, clear it after `T_RAW_LINE`. This is the same trick chibicc uses with `at_bol` to let the preprocessor consume a directive to end of line while the rest of the lexer stays free-form (`chibicc.h:88`, `preprocess.c:233`, `preprocess.c:82-89`).
 - `type` and `typeln` are keywords *everywhere*, not just at statement start. Simpler, and it is what makes `if x then typeln one` work. The two share one raw-line path; they differ only in whether the parser appends a trailing newline.
 - Interpolation is **not** lexed here. The raw slice goes to the parser whole.
+- `type_file`/`typeln_file` are **not** raw-mode: they take a normal string expression, so they do
+  not set `after_type`. The parser reads and validates a literal path's file at parse time (through
+  `textfile.c`), a deliberate, bounded parse-time side effect; a computed path is deferred to the
+  evaluator (01 §5.1).
 
 ## 4. Parser
 
