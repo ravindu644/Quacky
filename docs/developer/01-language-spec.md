@@ -2,7 +2,7 @@
 
 Quacky is a shell-flavoured scripting language that drives a USB HID keyboard. A script
 computes with ints, bools and strings, loops, branches, calls functions, and emits two kinds
-of key activity: `type` writes literal text, and a **chord** (`ctrl + c`) presses keys
+of key activity: `type`/`typeln` write literal text, and a **chord** (`ctrl + c`) presses keys
 together. The interpreter turns each into USB HID keyboard reports written to `/dev/hidgX`
 (the node provided by the companion USB Arsenal project), so the host computer sees a real
 keyboard typing at supersonic speed. For safe dry-runs and the test suite it can instead write
@@ -29,7 +29,7 @@ and small interpreters work.
 
 ```
 if then elif else fi while do done for in func end return break continue
-const true false sleep type hold release delay repeat
+const true false sleep type typeln hold release delay repeat
 ```
 
 ### Key names (contextual, not reserved)
@@ -83,7 +83,7 @@ for_stmt    = "for" IDENT "in" expr ".." expr "do" block "done" ;   (* inclusive
 func_decl   = "func" IDENT { IDENT } sep block "end" ;                (* top level only *)
 return_stmt = "return" [ expr ] ;
 sleep_stmt  = "sleep" expr ;                                          (* milliseconds *)
-type_stmt   = "type" RAW_LINE ;                                       (* see §5 *)
+type_stmt   = ( "type" | "typeln" ) RAW_LINE ;                        (* see §5 *)
 call_stmt   = IDENT "(" [ expr { "," expr } ] ")" ;
 
 block       = { sep } { statement { sep } } ;                         (* ends at the keyword that closes it *)
@@ -96,7 +96,7 @@ primary     = INT | STRING | "true" | "false" | IDENT
 
 Block-closing keywords (`then do done fi elif else end`) have no prefix or infix rule in the
 expression parser, so an expression naturally stops in front of them. That is what makes
-`while i < 3 do` and `if i == 1 then type one` work without parentheses.
+`while i < 3 do` and `if i == 1 then typeln one` work without parentheses.
 
 A statement that begins with an identifier is dispatched by its first and second tokens: `=`
 → assignment, `(` → call, a key name (§6.1) → chord statement, otherwise the
@@ -184,23 +184,28 @@ error. Shell users write `if n != 0 then`, which is the intended style.
 `expr` must be an int ≥ 0, milliseconds. Negative → runtime error. Timing is absolute-deadline
 based (see 05).
 
-## 5. The `type` statement
+## 5. The `type` and `typeln` statements
 
 ```
-type Hello $name, you have ${count * 2} items.\n
+type   Hello $name                        (* no trailing newline *)
+typeln Hello $name, you have ${count * 2} items.
 ```
 
-- Everything after `type` and a single space up to end of line is the raw text. The lexer is in **raw mode** here: `#` is not a comment, `"` is not a string, `;` does not end the statement.
-- Leading: exactly one space after `type` is consumed; further spaces are text. Trailing: `\r` is stripped, other trailing spaces are kept.
+Both statements share one raw-line body (`parse_raw_line`). They differ in a single bit: `typeln`
+appends a trailing `\n` (Enter), `type` does not. This is the print / println split; it makes "no
+Enter" the default and keeps a hidden Enter out of `type`.
+
+- Everything after the keyword and a single space up to end of line is the raw text. The lexer is in **raw mode** here: `#` is not a comment, `"` is not a string, `;` does not end the statement.
+- Leading: exactly one space after the keyword is consumed; further spaces are text. Trailing: `\r` is stripped, other trailing spaces are kept.
 - Interpolation: `$name` (identifier chars) and `${ expr }` (any expression, sub-lexed in normal mode, braces must balance). A `$` not followed by an identifier or `{` is literal. `\$` is always literal `$`.
-- Escapes, as `echo -e`: `\\ \n \t \r \e \a \b \v \f \xHH \0NNN`. `\c` stops output and suppresses the trailing newline (echo's convention).
-- Output = text + `\n`. A bare `type` with nothing after it emits just `\n`.
+- Escapes, as `echo -e`: `\\ \n \t \r \e \a \b \v \f \xHH \0NNN`. `\c` stops output at that point and, on a `typeln`, suppresses the trailing newline (echo's convention), so `typeln X\c` equals `type X`.
+- Output: `type` is exactly the text; `typeln` is the text + `\n`. A bare `type` emits nothing, a bare `typeln` emits just `\n`. The trailing newline is baked into the last text segment at parse time, so eval and output add nothing.
 - Each UTF-8 **code point** is one tick: write it with one `write(2)`, then sleep until the next deadline. Multi-byte characters are never split across ticks.
 - Interpolated values use `to_string` from §4.3.
 
 ## 6. Keystrokes and HID output
 
-`type` covers literal text. Everything else a keyboard can do (named keys, modifier
+`type` and `typeln` cover literal text. Everything else a keyboard can do (named keys, modifier
 combinations, keeping a key down) is expressed with chords and the `hold`/`release` verbs.
 
 ### 6.1 Key names
@@ -304,7 +309,7 @@ not by Quacky.
 # greet.qk
 const DELAY = 300
 func greet name
-  type Hello $name!
+  typeln Hello $name!
   sleep DELAY
 end
 
@@ -313,9 +318,9 @@ greet(names)
 
 i = 0
 while i < 3 do
-  if i == 1 then type one
-  elif i == 2 then type two # this '#' is printed, it's inside the type line
-  else type zero
+  if i == 1 then typeln one
+  elif i == 2 then typeln two # this '#' is printed, it's inside the type line
+  else typeln zero
   fi
   i = i + 1
 done
@@ -326,8 +331,8 @@ func fib n
   if n < 2 then return n fi
   return fib(n - 1) + fib(n - 2)
 end
-type fib(20) = ${fib(20)}
-type done\c
+typeln fib(20) = ${fib(20)}
+type done
 ```
 
 Expected output stream (5 ms per character):
@@ -349,11 +354,9 @@ A keystroke-oriented script, `open-notes.qk`, that opens a run dialog on the hos
 delay 50               # settle time after every step
 super + r              # open the Run dialog
 sleep 400
-type notepad
-enter
+typeln notepad         # type the name and press Enter to launch it
 sleep 600
-type Hello from Quacky!
-enter
+type Hello from Quacky!   # no Enter: the cursor stays on this line
 hold shift
 home                   # select the line we just typed
 release shift

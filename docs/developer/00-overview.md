@@ -33,7 +33,7 @@ provides.
 
 ```
  script.qk ──► read file, CRLF→LF
-            ──► lexer      tokens as slices; `type` switches to raw-line mode        (02)
+            ──► lexer      tokens as slices; `type`/`typeln` switch to raw-line mode (02)
             ──► parser     recursive descent + Pratt; `for`/`elif` desugared;          (02)
                            `${expr}` sub-parsed; syntax errors exit 2 before any output
             ──► AST        arena-allocated, freed once at exit                         (02)

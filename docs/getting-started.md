@@ -27,11 +27,12 @@ after editing a header, since the build does not track header dependencies.
 Put this in `hello.qk`:
 
 ```
-type Hello from Quacky!
-type Typed by a script.
+typeln Hello from Quacky!
+typeln Typed by a script.
 ```
 
-Each `type` ends its line by pressing Enter for you, so these two lines land one above the other.
+`typeln` types a line and presses Enter, so these two land one above the other. Use `type` when you
+want text without a trailing Enter.
 
 ## Rehearse it (dry run)
 

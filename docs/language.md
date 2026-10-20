@@ -19,7 +19,7 @@ the full list of key names you can press.
 - [Comments](#comments)
 - [Values and variables](#values-and-variables)
 - [Operators](#operators)
-- [Typing text](#typing-text-the-type-statement)
+- [Typing text](#typing-text-type-and-typeln)
 - [Pressing keys](#pressing-keys-chords)
 - [Holding keys down](#holding-keys-down)
 - [Timing: delay, sleep, repeat](#timing-delay-sleep-repeat)
@@ -110,45 +110,53 @@ parentheses.
 Integer math is predictable: `+ - *` wrap on overflow (two's complement, never undefined), `/` and
 `%` truncate toward zero and raise an error on divide-by-zero.
 
-## Typing text: the `type` statement
+## Typing text: `type` and `typeln`
 
-`type` sends literal text to the host, exactly as written, and then presses Enter (it appends a
-newline). Everything after the first space is taken verbatim, so `#`, `"` and `;` are ordinary
-characters here.
+Two statements put text on the host. Both take everything after the first space verbatim, so `#`,
+`"` and `;` are ordinary characters here, not comments or quotes.
 
-```
-type Hello from Quacky!
-type   two leading spaces are kept (the first space after 'type' is the separator)
-```
-
-End a line with `\c` to type it **without** the trailing newline, so the next `type` continues on
-the same line:
+- **`type`** types exactly the text, with no Enter at the end.
+- **`typeln`** types the text and then presses Enter (a trailing newline).
 
 ```
-type user\c
-type name          # the host sees: username
+type Hello             # types: Hello
+typeln Hello           # types: Hello, then presses Enter
+```
+
+It is the print / println split. Consecutive `type`s stay on one line; `typeln` ends the line:
+
+```
+type user
+typeln name            # the host sees "username", then Enter
+```
+
+Spaces after the first one are kept:
+
+```
+type   three leading spaces are kept (the first space is just the separator)
 ```
 
 ### Interpolation
 
-Inside a `type` line, `$name` is replaced by a variable's value, and `${ ... }` evaluates any
-expression. Use `\$` for a literal dollar sign.
+Inside a `type` or `typeln` line, `$name` is replaced by a variable's value, and `${ ... }`
+evaluates any expression. Use `\$` for a literal dollar sign.
 
 ```
 name  = "world"
 count = 3
-type Hello $name, you have ${count * 2} items.
-type that costs \$5
+typeln Hello $name, you have ${count * 2} items.
+typeln that costs \$5
 ```
 
-### Escapes in `type`
+### Escapes
 
-The same escapes as strings work here (`\n`, `\t`, `\xHH`, and so on), plus `\$` for a dollar sign
-and `\c` to suppress the trailing newline.
+The same escapes as strings work in both (`\n`, `\t`, `\xHH`, and so on), plus `\$` for a dollar
+sign. A `\n` in the middle of the text presses Enter right there. `\c` stops output at that point
+and drops a `typeln`'s trailing Enter, so `typeln x\c` types the same as `type x`:
 
 ```
-type col1\tcol2\tcol3
-type no newline after this\c
+typeln col1\tcol2\tcol3        # a tab-separated line, then Enter
+typeln no Enter after this\c   # \c cancels typeln's trailing Enter
 ```
 
 ## Pressing keys: chords
@@ -199,7 +207,8 @@ Releasing a key that is not held is an error, so a script cannot accidentally le
 - **`delay MS`** sets a default pause inserted after every following statement. It stays in effect
   until you change it; `delay 0` turns it off. The default is 0.
 - **`sleep MS`** pauses once, right now.
-- **`repeat N`** re-runs the previous keystroke, `type`, chord, `hold` or `release` N more times.
+- **`repeat N`** re-runs the previous keystroke, `type`, `typeln`, chord, `hold` or `release` N more
+  times.
 
 ```
 delay 50             # from here on, pause 50 ms after each step
@@ -220,11 +229,11 @@ A condition must be a bool. There is no "truthiness", so compare explicitly (`if
 ```
 n = 2
 if n == 0 then
-  type zero
+  typeln zero
 elif n == 1 then
-  type one
+  typeln one
 else
-  type many
+  typeln many
 fi
 ```
 
@@ -235,7 +244,7 @@ fi
 ```
 i = 0
 while i < 3 do
-  type tick
+  typeln tick
   i = i + 1
 done
 ```
@@ -245,7 +254,7 @@ The loop variable is an ordinary variable and keeps its last value after the loo
 
 ```
 for i in 1 .. 5 do
-  type line $i
+  typeln line $i
 done
 ```
 
@@ -257,7 +266,7 @@ while true do
   i = i + 1
   if i == 3 then continue fi
   if i > 5 then break fi
-  type $i
+  typeln $i
 done
 ```
 
@@ -269,7 +278,7 @@ value; `return` hands a value back.
 
 ```
 func greet name
-  type Hello $name!
+  typeln Hello $name!
 end
 
 func add a b
@@ -278,7 +287,7 @@ end
 
 greet("world")
 sum = add(2, 3)
-type sum is $sum
+typeln sum is $sum
 ```
 
 A function has its own local variables, but it can still read and write top-level variables by name,
@@ -289,7 +298,7 @@ func fib n
   if n < 2 then return n fi
   return fib(n - 1) + fib(n - 2)
 end
-type fib(10) = ${fib(10)}
+typeln fib(10) = ${fib(10)}
 ```
 
 ## Things that will trip you up
@@ -302,6 +311,6 @@ A short list of rules that surprise people:
 - **No implicit conversions** except that `+` with a string turns the other side into text.
 - **`a & b == 0` means `a & (b == 0)`** because of C precedence. Parenthesise: `(a & b) == 0`.
 - **The End key is `endkey`**, because `end` is a keyword.
-- **`type` keeps spaces** after the first one, and always presses Enter at the end unless you use
-  `\c`.
-- **`\$` only works in a `type` line**, not inside a `"string"`.
+- **`type` does not press Enter; `typeln` does.** Reach for `typeln` when you want a line and Enter.
+- **`type`/`typeln` keep spaces** after the first one.
+- **`\$` only works in a `type`/`typeln` line**, not inside a `"string"`.

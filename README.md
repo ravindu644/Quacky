@@ -37,12 +37,13 @@ alternative that runs on hardware you already own. The USB side is handled by th
 delay 50                 # from here on, pause 50 ms after every step
 super + r                # a chord: keys joined with + are pressed together
 sleep 400
-type notepad             # type presses Enter at the end, which launches it
+typeln notepad           # typeln types the line and presses Enter, launching it
 sleep 600
-type Hello from Quacky!
+typeln Hello from Quacky!
 ```
 
-- **`type`** writes literal text, with `$name` and `${expr}` interpolation.
+- **`type`** writes literal text (no Enter); **`typeln`** adds the Enter. Both take `$name` and
+  `${expr}` interpolation.
 - **Chords** are keys joined with `+` and pressed together: `enter`, `ctrl + c`, `super + r`.
 - **`hold` / `release`** keep keys down across later lines; **`delay`** sets a default pause,
   **`sleep`** pauses once, **`repeat N`** re-runs the previous action.

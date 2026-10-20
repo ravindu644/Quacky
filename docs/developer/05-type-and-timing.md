@@ -85,7 +85,7 @@ static uint8_t base_mod(const Output *o) { return o->held_mod; }                
 - There is no inter-report dwell by default; back-to-back press and release writes give the
   host a distinct down then up event. A small fixed gap is a one-line tuning knob if a target
   drops fast events, but the reference protocol uses none.
-- **`--fast` rollover (opt-in, `type` only).** Each character is normally two reports, press
+- **`--fast` rollover (opt-in, typed characters only).** Each character is normally two reports, press
   then release, and the USB interrupt endpoint polls about once per millisecond, so ~2 ms per
   character is the wall. With `--fast`, `out_type` rolls one key into the next: a report that
   drops the old usage and adds the new one is a release and a press in a single poll, so a run of

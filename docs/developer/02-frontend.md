@@ -14,11 +14,11 @@ AST are documented together because the `type` statement cuts across all three.
 ```c
 typedef enum {
     T_EOF, T_NEWLINE, T_SEMI,
-    T_INT, T_STRING, T_IDENT, T_RAW_LINE,          // RAW_LINE only after `type`
+    T_INT, T_STRING, T_IDENT, T_RAW_LINE,          // RAW_LINE only after `type`/`typeln`
     // keywords
     T_IF, T_THEN, T_ELIF, T_ELSE, T_FI, T_WHILE, T_DO, T_DONE, T_FOR, T_IN,
     T_FUNC, T_END, T_RETURN, T_BREAK, T_CONTINUE, T_CONST, T_TRUE, T_FALSE,
-    T_SLEEP, T_TYPE, T_HOLD, T_RELEASE, T_DELAY, T_REPEAT,
+    T_SLEEP, T_TYPE, T_TYPELN, T_HOLD, T_RELEASE, T_DELAY, T_REPEAT,
     // punctuation / operators
     T_LPAREN, T_RPAREN, T_COMMA, T_ASSIGN, T_DOTDOT,
     T_PLUS, T_MINUS, T_STAR, T_SLASH, T_PERCENT,
@@ -60,7 +60,7 @@ first character. Deviations:
 This is the one genuinely non-standard part of the lexer.
 
 ```
-after emitting T_TYPE:
+after emitting T_TYPE or T_TYPELN:
     if next char is ' '  → consume exactly one space
     start = current
     advance until '\n' or EOF            # do NOT treat '#', '"', ';' specially
@@ -68,8 +68,8 @@ after emitting T_TYPE:
     (the '\n' is then lexed normally into T_NEWLINE)
 ```
 
-- The lexer needs one bit of state: `after_type`. Set it when `T_TYPE` is emitted, clear it after `T_RAW_LINE`. This is the same trick chibicc uses with `at_bol` to let the preprocessor consume a directive to end of line while the rest of the lexer stays free-form (`chibicc.h:88`, `preprocess.c:233`, `preprocess.c:82-89`).
-- `type` is a keyword *everywhere*, not just at statement start. Simpler, and it is what makes `if x then type one` work.
+- The lexer needs one bit of state: `after_type`. Set it when `T_TYPE` or `T_TYPELN` is emitted, clear it after `T_RAW_LINE`. This is the same trick chibicc uses with `at_bol` to let the preprocessor consume a directive to end of line while the rest of the lexer stays free-form (`chibicc.h:88`, `preprocess.c:233`, `preprocess.c:82-89`).
+- `type` and `typeln` are keywords *everywhere*, not just at statement start. Simpler, and it is what makes `if x then typeln one` work. The two share one raw-line path; they differ only in whether the parser appends a trailing newline.
 - Interpolation is **not** lexed here. The raw slice goes to the parser whole.
 
 ## 4. Parser
@@ -97,7 +97,7 @@ parse_statement: switch cur.kind:
     T_REPEAT    → expr                                         (* repeat previous action *)
     T_HOLD      → parse_chord body → S_HOLD
     T_RELEASE   → "all" → S_RELEASE(all); else parse_chord body → S_RELEASE
-    T_TYPE      → expect T_RAW_LINE; parse_raw_line (see 4.3)
+    T_TYPE/T_TYPELN → expect T_RAW_LINE; parse_raw_line, newline only for T_TYPELN (see 4.3)
 parse_block(closers...): skip_seps; while cur ∉ closers: parse_statement; expect sep unless cur ∈ closers
 ```
 
@@ -146,7 +146,8 @@ Algorithm over the slice:
 2. On `$` followed by identifier start → `SEG_EXPR` holding a `VAR` node (picol `picolParseVar`, `picol.c:173-191`, including the "lone `$` is literal" rule at `:183-185`).
 3. On `${` → find the matching `}` counting nested braces, then **run a sub-lexer + `parse_expr` on that substring** with normal (non-raw) lexing. Unbalanced → syntax error at the `${`. Wren's `%(...)` interpolation does the same with a paren counter inside its main lexer (`wren_compiler.c`, `readString`, `MAX_INTERPOLATION_NESTING 8`); running a child lexer on the substring is simpler for us because `type` never nests.
 4. Anything else appends to the current `SEG_TEXT`.
-5. Unless `\c` was seen, append a final `SEG_TEXT` of `"\n"`.
+5. For `typeln`, and unless `\c` was seen, append a final `SEG_TEXT` of `"\n"`. `type` never appends
+   one, so its output is exactly the decoded text.
 
 Decoded text segments are copied into the arena (they are no longer slices once escapes are
 decoded). Column numbers for errors inside `${...}` are `raw.col + offset`.
