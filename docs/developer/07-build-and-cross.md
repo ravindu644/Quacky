@@ -41,16 +41,17 @@ LDFLAGS := -static -s -Wl,--gc-sections
 TC      := $(HOME)/toolchains
 TARGETS := x86_64-linux-musl i686-linux-musl aarch64-linux-musl arm-linux-musleabihf riscv64-linux-musl
 SRC     := $(wildcard src/*.c)
+INC     := -Isrc/include                         # headers live in src/include/
 
 all: $(TARGETS:%=bin/quacky-%)
 
-bin/quacky-%: $(SRC) src/*.h | bin
-	$(TC)/$*-cross/bin/$*-gcc $(CSTD) $(COPT) $(CWARN) $(SRC) $(LDFLAGS) -o $@
+bin/quacky-%: $(SRC) src/include/*.h | bin
+	$(TC)/$*-cross/bin/$*-gcc $(CSTD) $(COPT) $(CWARN) $(INC) $(SRC) $(LDFLAGS) -o $@
 
 bin: ; mkdir -p bin
 
 native: $(SRC)                                   # host gcc, for tests and sanitizers
-	gcc $(CSTD) -O0 -g -fsanitize=address,undefined $(CWARN) $(SRC) -o bin/quacky
+	gcc $(CSTD) -O0 -g -fsanitize=address,undefined $(CWARN) $(INC) $(SRC) -o bin/quacky
 
 clean: ; rm -rf bin
 ```

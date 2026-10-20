@@ -27,8 +27,9 @@ Five static musl builds plus a native sanitizer build. Details and the Makefile 
   `i686`, `aarch64`, `arm-musleabihf` and `riscv64`.
 - `make` cross-compiles all five into `bin/`; `make native` builds with ASan+UBSan for the tests;
   `make clean` wipes `bin/`.
-- `SRC` is a `wildcard src/*.c`, so a new `.c` in `src/` is picked up with no Makefile edit; there is
-  no header-dependency tracking, so run `make clean` after editing a header.
+- `SRC` is a `wildcard src/*.c`, so a new `.c` in `src/` is picked up with no Makefile edit. Headers
+  live in `src/include/` and are found through `-Isrc/include`; there is no header-dependency
+  tracking, so run `make clean` after editing a header.
 - Flags are pinned (`-std=c11`, `-Werror`, `-Wconversion`, `-static`). Do not loosen them to silence
   a warning; fix the code. `-Wconversion` is what catches 32-bit narrowing before an armhf box does
   at 3 a.m.
@@ -44,6 +45,7 @@ Five static musl builds plus a native sanitizer build. Details and the Makefile 
 | `src/value.c` | the `Value` union, refcounted strings, `to_string`, `int_op` |
 | `src/output.c` | the one place that touches the OS for output: fd, backends, clock, HID reports, held-key set |
 | `src/keys.c` | the single source of truth for key names and the US char to (modifier, usage) table |
+| `src/include/*.h` | the module headers, one per `src/` unit, on the build's `-Isrc/include` path |
 | `docs/developer/` | the design guide, nine numbered docs |
 | `docs/` | the end-user documentation (language, keys, examples, getting started) |
 | `tests/` | `cases/*.qk` with `.out` (transcript) and `.hid` (report bytes), plus `run.sh` |

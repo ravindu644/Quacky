@@ -71,14 +71,16 @@ script.qk` types for real; `quacky -o out.txt script.qk` writes a transcript to 
 
 ```
 quacky/
-  src/
+  src/            the interpreter, one .c per module
     main.c        CLI (--hid DEV, -o FILE, --check, -d MS, --fast), read file, run, exit codes
-    lex.c/.h      tokens, raw mode, chords
-    parse.c/.h    statements, Pratt, `type` segments, chords, arena
-    eval.c/.h     Interp, frames, status codes, calls, keystroke statements
-    value.c/.h    Value, QStr refcount, to_string, int_op
-    output.c/.h   fd, backends, ticks, sleep/delay, HID reports, held set, write_all
-    keys.c/.h     key-name table and US char→(modifier,usage) table
+    lex.c         tokens, raw mode, chords
+    parse.c       statements, Pratt, `type` segments, chords, arena
+    eval.c        Interp, frames, status codes, calls, keystroke statements
+    value.c       Value, QStr refcount, to_string, int_op
+    output.c      fd, backends, ticks, sleep/delay, HID reports, held set, write_all
+    keys.c        key-name table and US char→(modifier,usage) table
+    textfile.c    type_file loader: resolve, read, strict-UTF-8 validate
+    include/      the module headers, one per src/ unit (built with -Isrc/include)
   tests/          cases/*.qk + *.out (transcript) + *.hid (report bytes), run.sh
   tools/          qtype, a typing-speed meter (not part of the shipped binary)
   Makefile        five cross targets + native sanitizer build

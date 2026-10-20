@@ -5,7 +5,8 @@
 TC      := $(HOME)/toolchains
 TARGETS := x86_64-linux-musl i686-linux-musl aarch64-linux-musl arm-linux-musleabihf riscv64-linux-musl
 SRC     := $(wildcard src/*.c)
-HDR     := $(wildcard src/*.h)
+HDR     := $(wildcard src/include/*.h)
+INC     := -Isrc/include
 
 CSTD    := -std=c11 -D_POSIX_C_SOURCE=200809L
 COPT    := -O2 -ffunction-sections -fdata-sections
@@ -25,10 +26,10 @@ help:
 all: $(TARGETS:%=bin/quacky-%)
 
 bin/quacky-%: $(SRC) $(HDR) | bin
-	$(TC)/$*-cross/bin/$*-gcc $(CSTD) $(COPT) $(CWARN) $(SRC) $(LDFLAGS) -o $@
+	$(TC)/$*-cross/bin/$*-gcc $(CSTD) $(COPT) $(CWARN) $(INC) $(SRC) $(LDFLAGS) -o $@
 
 native: $(SRC) $(HDR) | bin
-	gcc $(CSTD) -O0 -g -fsanitize=address,undefined $(CWARN) $(SRC) -o bin/quacky
+	gcc $(CSTD) -O0 -g -fsanitize=address,undefined $(CWARN) $(INC) $(SRC) -o bin/quacky
 
 # A host-only companion (termios), built with the host cc, kept out of $(SRC).
 qtype: tools/qtype
