@@ -65,19 +65,21 @@ Tick a box only when the item is implemented and verified as described in its ph
 - [x] `if`/`elif`/`else`/`fi` chain, `while`, `for` desugared to `while`, `func` (top level
       only); misplaced `return`/`break`/`continue` are syntax errors via `loop_depth`/`in_func`
 - [x] `type` raw line into segments: escape decoding, `$name`, `${expr}` sub-lexer, `\c`
-      (precise source-column mapping for errors inside `${...}` is deferred, noted in `parse.c`)
+      (errors inside `${...}` map back to the real source column, `subparse_expr` in `parse.c`)
 - [x] Chords: `parse_chord` resolving names/letters/digits into a `Chord {mod, usages, n}`;
       `hold`/`release`/`release all`; `delay`/`repeat` as expr statements; `unknown key` and
       `too many keys in a chord` as syntax errors
 - [x] The whole AST arena-allocated; `for` and `elif` never appear as node kinds
 
 ## Phase 3. Values and strings (04)
-- [ ] `Value` union; `QStr` refcount with arena literals immortal (`rc = -1`)
-- [ ] `str_retain`/`str_release`/`val_retain`/`val_release` and the five ownership rules
-- [ ] `to_string` (int decimal via `PRId64`, bool `true`/`false`), string `+` concat
-- [ ] `int_op`: div/mod by zero, `INT64_MIN / -1`, `% -1`, out-of-range shifts, two's-complement
-      wrap, all handled without UB (UBSan proves it)
-- [ ] `equal`/`compare`; the 32-bit `_Static_assert`s
+- [x] `Value` union; `QStr` refcount with arena literals immortal (`rc = -1`)
+- [x] `str_retain`/`str_release`/`val_retain`/`val_release` and the five ownership rules
+      (inline retain/release; the arena-literal path is wired by the evaluator in Phase 4)
+- [x] `to_string` (int decimal via `PRId64`, bool `true`/`false`), string `+` concat
+- [x] `int_op`: div/mod by zero, `INT64_MIN / -1`, `% -1`, out-of-range shifts, two's-complement
+      wrap, all handled without UB (UBSan proves it); signature takes `const char **err`, not
+      `Interp`, so it stays a pure leaf (04 §4)
+- [x] `equal`/`compare`; the 32-bit `_Static_assert`s
 
 ## Phase 4. Evaluator (03)
 - [ ] `Interp` state; frames as 64-bucket FNV-1a hash maps; two-level scope with
@@ -154,6 +156,15 @@ Tick a box only when the item is implemented and verified as described in its ph
       board or phone, covering `type`, chords, and `hold`/`release`
 
 ## Status log
+- 2026-10-20: Phase 3 landed. Expanded `src/value.h` to the full model (`Value`, `QStr`,
+  `ValType`, `Status`) and added `src/value.c`: refcounting (`val_retain`/`val_release` plus the
+  inline `str_retain`/`str_release`, immortal strings at `rc < 0`), `to_string` (`PRId64`,
+  `true`/`false`), `str_concat` (one allocation), `equal`/`compare`, and `int_op` with every
+  integer UB case handled unsigned. `int_op` takes a `const char **err` instead of the
+  blueprint's `Interp` so it is a pure leaf; 04 §4 updated to match. Proven by a scratchpad
+  self-check under ASan+UBSan (the two SIGFPE traps, div/mod by zero, wrap, shifts, refcount
+  lifecycle). Also fixed the deferred `${...}` diagnostic: `subparse_expr` now carries an origin
+  so an error in an interpolation points at the real source column and line, not the snippet.
 - 2026-10-20: Phase 2 landed, and the `keys.c` lookups with it. Added `src/value.h` (the `Str`
   slice), `src/keys.{c,h}` (the modifier/named-key table and the full US char map, both pure
   lookups), the AST types and `parse()` in `src/parse.{c,h}` (recursive-descent statements, a

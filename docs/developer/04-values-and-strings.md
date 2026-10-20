@@ -70,8 +70,14 @@ Concatenation allocates once: `malloc(sizeof(QStr) + a->len + b->len)`; no inter
 ## 4. Integer operations: one function, every edge case
 
 ```c
-Status int_op(TokKind op, int64_t a, int64_t b, int64_t *out, Interp *I);
+Status int_op(TokKind op, int64_t a, int64_t b, int64_t *out, const char **err);
 ```
+
+`int_op` is a pure leaf in `value.c` with no evaluator dependency: it takes a message
+out-parameter rather than an `Interp`. Only `/` and `%` by zero fail, setting `*err` to the
+message and returning `ST_ERR`; the evaluator forwards it with `rt_error(I, node, "%s", err)`.
+Unary minus is `int_neg` (the one unary case with overflow UB); `~` is UB-free and the
+evaluator applies it directly.
 
 | op | Implementation | Source of idiom |
 |---|---|---|
