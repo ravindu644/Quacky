@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 434" width="820" height="434" role="img" aria-label="Quacky typing-speed benchmark">
+<text x="18" y="36" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e6edf3">Typing speed by USB poll interval   (net WPM, 172-char command)</text>
+<text x="18" y="69.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b949e">i1  125 us</text>
+<rect x="110" y="55.0" width="606" height="20" rx="5" fill="#21262d"/>
+<rect x="110" y="55.0" width="606.0" height="20" rx="5" fill="#4c8dff"/>
+<text x="802" y="69.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="end" fill="#e6edf3">94,811</text>
+<text x="18" y="103.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b949e">i2  250 us</text>
+<rect x="110" y="89.0" width="606" height="20" rx="5" fill="#21262d"/>
+<rect x="110" y="89.0" width="488.1" height="20" rx="5" fill="#4c8dff"/>
+<text x="802" y="103.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="end" fill="#e6edf3">76,361</text>
+<text x="18" y="137.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b949e">i3  500 us</text>
+<rect x="110" y="123.0" width="606" height="20" rx="5" fill="#21262d"/>
+<rect x="110" y="123.0" width="429.6" height="20" rx="5" fill="#4c8dff"/>
+<text x="802" y="137.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="end" fill="#e6edf3">67,220</text>
+<text x="18" y="171.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b949e">i4  1 ms</text>
+<rect x="110" y="157.0" width="606" height="20" rx="5" fill="#21262d"/>
+<rect x="110" y="157.0" width="114.7" height="20" rx="5" fill="#4c8dff"/>
+<text x="802" y="171.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="end" fill="#e6edf3">17,946</text>
+<text x="18" y="218" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e6edf3">One interpreter, instant to human   (net WPM at the 1 ms interval)</text>
+<text x="18" y="251.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b949e">-d 0</text>
+<rect x="110" y="237.0" width="606" height="20" rx="5" fill="#21262d"/>
+<rect x="110" y="237.0" width="595.0" height="20" rx="5" fill="#4c8dff"/>
+<text x="802" y="251.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="end" fill="#e6edf3">17,946</text>
+<text x="18" y="285.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b949e">-d 5</text>
+<rect x="110" y="271.0" width="606" height="20" rx="5" fill="#21262d"/>
+<rect x="110" y="271.0" width="391.4" height="20" rx="5" fill="#4c8dff"/>
+<text x="802" y="285.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="end" fill="#e6edf3">2,396</text>
+<text x="18" y="319.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b949e">-d 20</text>
+<rect x="110" y="305.0" width="606" height="20" rx="5" fill="#21262d"/>
+<rect x="110" y="305.0" width="251.2" height="20" rx="5" fill="#4c8dff"/>
+<text x="802" y="319.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="end" fill="#e6edf3">599</text>
+<text x="18" y="353.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b949e">-d 50</text>
+<rect x="110" y="339.0" width="606" height="20" rx="5" fill="#21262d"/>
+<rect x="110" y="339.0" width="158.7" height="20" rx="5" fill="#4c8dff"/>
+<text x="802" y="353.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="end" fill="#e6edf3">240</text>
+<text x="18" y="387.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#8b949e">-d 100</text>
+<rect x="110" y="373.0" width="606" height="20" rx="5" fill="#21262d"/>
+<rect x="110" y="373.0" width="88.5" height="20" rx="5" fill="#4c8dff"/>
+<text x="802" y="387.4" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" text-anchor="end" fill="#e6edf3">120</text>
+<text x="18" y="420" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" fill="#8b949e">Captured over USB HID into a desktop host, 100% accuracy on every run. Second panel on a log scale.</text>
+</svg>

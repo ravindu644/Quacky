@@ -11,6 +11,13 @@ terminal in raw mode and just drains stdin as fast as the kernel delivers it, ti
 byte to the last, with no echo during capture. That makes it a fair stopwatch for a USB HID
 gadget typing at full tilt.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="benchmark-dark.svg">
+    <img alt="Quacky typing-speed benchmark: net WPM by USB poll interval, and the -d pacing range" src="benchmark-light.svg" width="820">
+  </picture>
+</p>
+
 ```sh
 make qtype                      # or: cc -O2 -Wall -Wextra -o tools/qtype tools/qtype.c
 ./tools/qtype passage.txt       # interactive: dim hint, your typing overlaid, live stats
