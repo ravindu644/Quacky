@@ -1,4 +1,6 @@
 research/
-bin/
+output/
 *.o
 tools/qtype
+quacky-*.tar.gz
+*.zip
