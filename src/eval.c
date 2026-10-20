@@ -22,6 +22,18 @@ Status rt_error(Interp *I, int line, int col, const char *fmt, ...) {
   return ST_ERR;
 }
 
+/* A failed output write is environmental (unplugged cable, host not configured,
+   broken pipe), not a fault in the script, so drop the source location: line 0
+   makes print_diagnostic omit the caret that would point at a blameless line. A
+   logical rejection (no key mapping, an unheld release) keeps its caret. A run
+   halts on the first error, so the latched flag is never read for a later
+   statement. */
+static Status out_fail(Interp *I, int line, int col, const char *err) {
+  if (I->out->write_failed)
+    line = col = 0;
+  return rt_error(I, line, col, "%s", err);
+}
+
 static const char *vt_name(ValType t) {
   switch (t) {
   case VAL_INT:
@@ -460,7 +472,7 @@ static Status exec_type(Interp *I, Stmt *s) {
     Seg *seg = &s->type.segs[i];
     if (seg->kind == SEG_TEXT) {
       if (out_type(I->out, seg->text.p, seg->text.len, &err) != ST_OK)
-        return rt_error(I, s->line, s->col, "%s", err);
+        return out_fail(I, s->line, s->col, err);
     } else {
       Value v;
       Status st = eval_value(I, seg->expr, &v);
@@ -471,7 +483,7 @@ static Status exec_type(Interp *I, Stmt *s) {
       str_release(q);
       val_release(v);
       if (o != ST_OK)
-        return rt_error(I, s->line, s->col, "%s", err);
+        return out_fail(I, s->line, s->col, err);
     }
   }
   /* The trailing newline (absent when the line ended with \c) is already baked
@@ -517,9 +529,9 @@ static Status exec_type_file(Interp *I, Stmt *s) {
 
   Status r = ST_OK;
   if (out_type(I->out, bytes, len, &err) != ST_OK)
-    r = rt_error(I, s->line, s->col, "%s", err);
+    r = out_fail(I, s->line, s->col, err);
   else if (s->typefile.add_newline && out_type(I->out, "\n", 1, &err) != ST_OK)
-    r = rt_error(I, s->line, s->col, "%s", err);
+    r = out_fail(I, s->line, s->col, err);
   free(tofree);
   return r;
 }
@@ -652,17 +664,17 @@ static Status exec_stmt(Interp *I, Stmt *s) {
   case S_CHORD:
     if (out_chord(I->out, &s->chord.text, s->chord.mod, s->chord.usages,
                   s->chord.n, &err) != ST_OK)
-      return rt_error(I, s->line, s->col, "%s", err);
+      return out_fail(I, s->line, s->col, err);
     break;
   case S_HOLD:
     if (out_hold(I->out, &s->chord.text, s->chord.mod, s->chord.usages,
                  s->chord.n, &err) != ST_OK)
-      return rt_error(I, s->line, s->col, "%s", err);
+      return out_fail(I, s->line, s->col, err);
     break;
   case S_RELEASE:
     if (out_release(I->out, &s->chord.text, s->chord.mod, s->chord.usages,
                     s->chord.n, s->chord.all, &err) != ST_OK)
-      return rt_error(I, s->line, s->col, "%s", err);
+      return out_fail(I, s->line, s->col, err);
     break;
   }
   if (st != ST_OK)

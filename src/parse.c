@@ -54,6 +54,13 @@ void arena_free(Arena *a) {
 
 void print_diagnostic(const char *file, const char *src, int line, int col,
                       const char *msg) {
+  /* Line 0 means the error has no place in the source (a device or output
+     failure): print it plainly, no line and no caret to point nowhere. */
+  if (line <= 0) {
+    fprintf(stderr, "quacky: %s\n", msg);
+    return;
+  }
+
   fprintf(stderr, "%s:%d:%d: error: %s\n", file, line, col, msg);
 
   /* Walk to the start of the offending line by counting newlines. */

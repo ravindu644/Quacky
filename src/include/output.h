@@ -32,6 +32,10 @@ typedef struct {
   uint8_t held_key[6]; /* non-modifier usages held; 0 = empty slot */
   char errbuf[128]; /* holds a formatted message so a returned *err stays valid
                      */
+  bool write_failed; /* set when an output write fails. Such a failure is
+                        environmental (unplugged cable, host not configured,
+                        broken pipe, full disk), never a fault in the script, so
+                        eval reports it without a source caret. */
 } Output;
 
 /* Open the backend once at startup, before any statement runs, so a bad path or

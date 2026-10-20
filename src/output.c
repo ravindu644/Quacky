@@ -26,9 +26,19 @@ static Status write_bytes(Output *o, const void *buf, size_t n,
     if (w < 0) {
       if (errno == EINTR)
         continue;
-      snprintf(o->errbuf, sizeof o->errbuf, "output error: %s",
-               strerror(errno));
-      *err = o->errbuf;
+      o->write_failed = true; /* environmental, not a script fault */
+      /* The hidg endpoint is only writable once the host has set a USB
+         configuration. Until then write(2) gives ESHUTDOWN, which says nothing
+         about the real cause: an unplugged cable, or a host not talking to us
+         yet. USB Arsenal owns the gadget, so we only report, never recover. */
+      if (errno == ESHUTDOWN)
+        *err = "the host has not configured the gadget yet "
+               "(is the cable plugged into a computer?)";
+      else {
+        snprintf(o->errbuf, sizeof o->errbuf, "output error: %s",
+                 strerror(errno));
+        *err = o->errbuf;
+      }
       return ST_ERR;
     }
     p += w;
