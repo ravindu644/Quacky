@@ -36,6 +36,11 @@ for qk in cases/*.qk; do
         "$QUACKY" -d 0 --hid "$dev" "$qk" >/dev/null 2>&1
         if cmp -s "$dev" "$name.hid"; then ok; else bad "$qk hid bytes"; fi
     fi
+    if [ -f "$name.fast.hid" ]; then
+        dev=$TMP/fdev; : > "$dev"
+        "$QUACKY" -d 0 --fast --hid "$dev" "$qk" >/dev/null 2>&1
+        if cmp -s "$dev" "$name.fast.hid"; then ok; else bad "$qk --fast hid bytes"; fi
+    fi
     # --check parses only and writes nothing
     chk=$TMP/chk; : > "$chk"
     if "$QUACKY" --check "$qk" >"$chk" 2>/dev/null && [ ! -s "$chk" ]; then ok; else bad "$qk --check"; fi
