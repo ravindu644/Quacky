@@ -6,7 +6,7 @@ of key activity: `type` writes literal text, and a **chord** (`ctrl + c`) presse
 together. The interpreter turns each into USB HID keyboard reports written to `/dev/hidgX`
 (the node provided by the companion USB Arsenal project), so the host computer sees a real
 keyboard typing at supersonic speed. For safe dry-runs and the test suite it can instead write
-a human-readable transcript (see 05). Pacing is one key event per tick (default 20 ms).
+a human-readable transcript (see 05). Pacing is one key event per tick (default 5 ms).
 
 This is an educational, free and open-source tool for learning how HID keyboards, USB gadgets
 and small interpreters work.
@@ -330,7 +330,7 @@ type fib(20) = ${fib(20)}
 type done\c
 ```
 
-Expected output stream (20 ms per character):
+Expected output stream (5 ms per character):
 
 ```
 Hello world!

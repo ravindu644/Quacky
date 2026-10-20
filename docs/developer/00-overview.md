@@ -5,7 +5,7 @@ compute with ints, bools and strings, loop, branch, call functions, pause, `type
 press key **chords** (`ctrl + c`). The interpreter turns that into USB HID keyboard reports
 written to `/dev/hidgX` (the node the companion **USB Arsenal** project exposes through
 configfs), so the host computer sees a keyboard typing at supersonic speed, one key event
-every 20 ms by default. For a safe dry-run and for the test suite it instead writes a
+every 5 ms by default. For a safe dry-run and for the test suite it instead writes a
 human-readable transcript. The interpreter is a single static C11 binary for x86_64, i686,
 aarch64, armhf and riscv64.
 
@@ -23,7 +23,7 @@ This folder is the blueprint for the real implementation. No interpreter code ex
 - Safe to rehearse: a dry-run transcript and a `--check` parse step before anything types.
 
 ## Non-goals
-Speed beyond "invisible next to a 20 ms tick". Floats, containers, closures, modules, stdin,
+Speed beyond "invisible next to a 5 ms tick". Floats, containers, closures, modules, stdin,
 a REPL, a bytecode VM. Mouse reports, consumer/media keys, LEDs, buttons, USB identity and
 storage: USB Arsenal owns the gadget, Quacky only writes keyboard reports to the node it
 provides.

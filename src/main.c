@@ -17,7 +17,7 @@ static const char USAGE[] =
     "  --hid DEV         type for real: 8-byte HID reports to a /dev/hidgN node\n"
     "  -o FILE           write the transcript to FILE (appended)\n"
     "  --check           parse only, report the first syntax error, write nothing\n"
-    "  -d MS             milliseconds per key event (default 20, 0 = no pacing)\n"
+    "  -d MS             milliseconds per key event (default 5, 0 = no pacing)\n"
     "  --fast            roll each typed key into the next for ~2x HID throughput\n"
     "  --help            show this message\n";
 
@@ -45,7 +45,7 @@ static _Noreturn void usage_error(const char *msg) {
 int main(int argc, char **argv) {
     const char *script = NULL, *hid_dev = NULL, *out_file = NULL;
     bool check = false, fast = false;
-    int64_t tick_ms = 20;
+    int64_t tick_ms = 5;   /* fast but safe: above the ~1 ms USB poll, margin for slow targets */
 
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];

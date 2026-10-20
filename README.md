@@ -48,7 +48,7 @@ quacky script.qk                 # dry run: print a readable transcript of what 
 quacky --check script.qk         # parse only; report any syntax errors, type nothing
 quacky --hid /dev/hidg0 script.qk  # the real thing: write HID reports to the keyboard node
 quacky -o out.txt script.qk      # transcript to a file
-quacky -d 0 script.qk            # set the per-key tick in ms (default 20; 0 = as fast as possible)
+quacky -d 0 script.qk            # set the per-key tick in ms (default 5; 0 = as fast as possible)
 ```
 
 The transcript backend lets you rehearse a script safely before any key is pressed. A syntax

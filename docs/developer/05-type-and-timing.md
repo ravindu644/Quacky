@@ -26,7 +26,7 @@ typedef struct {
     int             fd;            // -1 until opened
     OutMode         mode;
     struct timespec next;          // absolute deadline of the next key event, CLOCK_MONOTONIC
-    long            tick_ns;       // default 20 * 1000 * 1000, from -d
+    long            tick_ns;       // default 5 * 1000 * 1000, from -d
     int64_t         default_delay; // ms inserted after every statement, from `delay`; 0 = off
     bool            started;       // first emit initialises `next`
     uint8_t         held_mod;      // modifier bits currently held by `hold`
@@ -225,7 +225,7 @@ evaluator (03) by re-running the previous action node; it needs nothing here.
 
 ## 8. Tick knob
 
-`-d MS` (default 20) sets the per-event tick. `-d 0` disables the sleep entirely (`wait_tick`
+`-d MS` (default 5) sets the per-event tick. `-d 0` disables the sleep entirely (`wait_tick`
 returns early), which is what the golden-file tests use so a long expected output does not take
 tens of seconds. Internally `tick_ns = MS * 1000000L`; `long` is 32-bit on i686/armhf, so cap
 `MS` (and any `sleep`/`delay` argument) at 2 000 000 (≈33 min) at option/eval time to keep the
