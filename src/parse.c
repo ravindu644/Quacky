@@ -106,6 +106,10 @@ typedef struct {
     Func      **funcs;          /* scratch, copied to the arena at the end */
     int         nfuncs, funcs_cap;
     int         for_counter;    /* makes hidden loop-end names unique */
+    /* Set only on the throwaway sub-parser for a `${...}` body, so its errors
+       map back to the original source instead of the extracted snippet. */
+    const char *origin_src;
+    int         origin_line, origin_col;
 } Parser;
 
 static void *xrealloc(void *ptr, size_t n) {
@@ -129,7 +133,14 @@ static _Noreturn void perr(Parser *p, Token t, const char *fmt, ...)
 static _Noreturn void perr(Parser *p, Token t, const char *fmt, ...) {
     char msg[256];
     va_list ap; va_start(ap, fmt); vsnprintf(msg, sizeof msg, fmt, ap); va_end(ap);
-    print_diagnostic(p->filename, p->src, t.line, t.col, msg);
+    if (p->origin_src) {
+        /* A `${...}` body is one physical line (a raw line carries no newline),
+           so the snippet token is always on line 1 and only the column shifts. */
+        print_diagnostic(p->filename, p->origin_src, p->origin_line,
+                         p->origin_col + (t.col - 1), msg);
+    } else {
+        print_diagnostic(p->filename, p->src, t.line, t.col, msg);
+    }
     exit(2);
 }
 
@@ -385,16 +396,18 @@ static int decode_escape(Parser *p, Token raw, const char *r, int len, int i, in
             perr(p, raw_at(raw, i - 1), "unknown escape in a 'type' line");
     }
 }
-static Expr *subparse_expr(Parser *parent, const char *inner, int innerlen) {
+static Expr *subparse_expr(Parser *parent, Token raw, int at, const char *inner, int innerlen) {
     /* Copy the ${...} body to a NUL-terminated arena buffer and run a fresh
-       lexer+parser over it. ponytail: errors inside interpolation report against
-       this snippet, not the original column; raw.col+offset mapping is deferred. */
+       lexer+parser over it. origin_* makes errors inside the body report at the
+       real source column: the body starts `at` bytes into the raw slice, whose
+       first byte is at raw.col, so column raw.col + at. */
     char *buf = arena_alloc(parent->a, (size_t)innerlen + 1);
     memcpy(buf, inner, (size_t)innerlen);
     buf[innerlen] = '\0';
     Parser sp;
     memset(&sp, 0, sizeof sp);
     sp.a = parent->a; sp.filename = parent->filename; sp.src = buf;
+    sp.origin_src = parent->src; sp.origin_line = raw.line; sp.origin_col = raw.col + at;
     sp.lx.filename = parent->filename; sp.lx.src = buf; sp.lx.p = buf;
     sp.lx.line = 1; sp.lx.col = 1; sp.lx.after_type = false;
     sp.cur = lex_next(&sp.lx);
@@ -442,7 +455,7 @@ static void parse_raw_line(Parser *p, Token raw, Stmt *s) {
                 }
                 if (depth != 0) perr(p, raw_at(raw, i), "unbalanced '${' in a 'type' line");
                 int innerlen = j - (i + 2);
-                Expr *e = subparse_expr(p, r + i + 2, innerlen);
+                Expr *e = subparse_expr(p, raw, i + 2, r + i + 2, innerlen);
                 seg_push_expr(&segs, &nseg, &segcap, e);
                 i = j + 1; continue;
             }
