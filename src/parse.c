@@ -223,6 +223,7 @@ static void  desugar_for_into(Parser *p, Stmt ***stmts, int *n, int *cap);
 static Block *parse_block(Parser *p, const TokKind *closers, int nc);
 static Chord parse_chord_body(Parser *p, Token first);
 static void  parse_raw_line(Parser *p, Token raw, Stmt *s);
+static QStr *str_literal_value(Parser *p, Token t);
 
 typedef Expr *(*PrefixFn)(Parser *);
 typedef Expr *(*InfixFn)(Parser *, Expr *);
@@ -285,7 +286,7 @@ static Expr *pf_literal(Parser *p) {
     Expr *e = NULL;
     switch (t.kind) {
         case T_INT:    e = mk_expr(p, E_INT, t);  e->ival = parse_int_token(t); break;
-        case T_STRING: e = mk_expr(p, E_STR, t);  e->sval = tok_str(t); break;
+        case T_STRING: e = mk_expr(p, E_STR, t);  e->sval = str_literal_value(p, t); break;
         case T_TRUE:   e = mk_expr(p, E_BOOL, t); e->bval = true; break;
         case T_FALSE:  e = mk_expr(p, E_BOOL, t); e->bval = false; break;
         default:       perr(p, t, "expected a literal");
@@ -393,8 +394,32 @@ static int decode_escape(Parser *p, Token raw, const char *r, int len, int i, in
             return v & 0xff;
         }
         default:
-            perr(p, raw_at(raw, i - 1), "unknown escape in a 'type' line");
+            perr(p, raw_at(raw, i - 1), "unknown escape sequence");
     }
+}
+/* A string literal's value: the same escape set as a `type` line (no `$`
+   interpolation, no `\c`), decoded once into an immortal arena QStr (04 §2), so
+   the evaluator wraps it with no copy and no refcount. The lexer guarantees a
+   byte always follows a backslash, so decode_escape never reads past the slice.
+   Decoded text is no longer than the source, so one arena QStr sized to the raw
+   length holds it; the few bytes an escape saves are left unused. */
+static QStr *str_literal_value(Parser *p, Token t) {
+    QStr *q = arena_alloc(p->a, sizeof *q + (size_t)t.len);
+    q->rc = -1;
+    size_t n = 0;
+    Token esc = t; esc.col = t.col + 1;   /* maps a slice offset to the inner column, past the quote */
+    for (int i = 0; i < t.len; ) {
+        if (t.start[i] == '\\') {
+            int adv;
+            int byte = decode_escape(p, esc, t.start, t.len, i + 1, &adv);
+            q->data[n++] = (char)byte;
+            i += 1 + adv;
+        } else {
+            q->data[n++] = t.start[i++];
+        }
+    }
+    q->len = n;
+    return q;
 }
 static Expr *subparse_expr(Parser *parent, Token raw, int at, const char *inner, int innerlen) {
     /* Copy the ${...} body to a NUL-terminated arena buffer and run a fresh
@@ -508,6 +533,8 @@ static Chord parse_chord_body(Parser *p, Token first) {
         if (!p_match(p, T_PLUS)) break;
         k = p->cur; p_advance(p);
     }
+    /* The source span from the first key to the last, for the transcript tag. */
+    c.text = (Str){ first.start, (size_t)((k.start + k.len) - first.start) };
     return c;
 }
 

@@ -59,7 +59,7 @@ typedef struct Expr {
     union {
         int64_t ival;                                      /* E_INT */
         bool    bval;                                      /* E_BOOL */
-        Str     sval;                                      /* E_STR */
+        QStr   *sval;                                      /* E_STR: immortal arena string, escapes decoded */
         Str     name;                                      /* E_VAR */
         struct { TokKind op; struct Expr *a, *b; } bin;    /* E_UNARY (a only), E_BINARY, E_AND, E_OR */
         struct { Str name; struct Expr **args; int nargs; } call;  /* E_CALL */
@@ -72,8 +72,10 @@ typedef enum {
 } StmtKind;
 
 /* A chord resolved at parse time: modifier bits plus up to six key usages.
-   `all` is set only for `release all`. */
-typedef struct { uint8_t mod; uint8_t usages[6]; int n; bool all; } Chord;
+   `all` is set only for `release all`. `text` is the source span of the keys
+   (e.g. "ctrl + c"), kept so the transcript backend can tag the action without
+   reverse-mapping usages back to names. */
+typedef struct { uint8_t mod; uint8_t usages[6]; int n; bool all; Str text; } Chord;
 
 /* One piece of a `type` line: literal text (escapes already decoded, arena
    copied) or an interpolated expression. */
