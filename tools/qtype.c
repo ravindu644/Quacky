@@ -78,31 +78,45 @@ static void enter_raw(int altscreen) {
     if (altscreen) { fputs("\033[?1049h\033[?25l\033[2J", stdout); fflush(stdout); g_altscreen = 1; }
 }
 
-/* Stats shared by both modes. */
-typedef struct { size_t typed, correct, target; double secs; } Stats;
+/* Stats shared by both modes. first_count is how many bytes the first read()
+   returned: those arrived before we could timestamp the start, so the rate is
+   measured over everything after them, which has no startup skew. */
+typedef struct { size_t typed, correct, target, first_count; double secs; } Stats;
 
-static Stats compute(const char *target, const char *typed, size_t i, size_t len, double secs) {
+static Stats compute(const char *target, const char *typed, size_t i, size_t len,
+                     double secs, size_t first_count) {
     size_t correct = 0;
     for (size_t j = 0; j < i; j++) if (typed[j] == target[j]) correct++;
-    Stats s = { i, correct, len, secs };
+    Stats s = { i, correct, len, first_count, secs };
     return s;
 }
 
 static void print_result(Stats s, int bench) {
-    double mins = s.secs / 60.0;
-    double net = mins > 0 ? ((double)s.correct / 5.0) / mins : 0.0;
-    double raw = mins > 0 ? ((double)s.typed / 5.0) / mins : 0.0;
-    double cps = s.secs > 0 ? (double)s.typed / s.secs : 0.0;
+    /* Sustained rate over the bytes after the first chunk. At human speed the
+       first read is one byte, so this is just total/elapsed; at 10k chars/s the
+       first chunk is many bytes that would otherwise inflate the number. A real
+       HID stream is paced by the USB poll, so even at 125 us the window is tens
+       of ms. A window under 5 ms means the input was already buffered, not paced,
+       and no receiver can measure its rate: report that instead of a huge number. */
+    double win = (s.typed > s.first_count) ? (double)(s.typed - s.first_count) : 0.0;
+    int reliable = (s.secs >= 0.005 && win > 0.0);
+    double cps = reliable ? win / s.secs : 0.0;
+    double raw = cps / 5.0 * 60.0;
     double acc = s.typed > 0 ? (double)s.correct / (double)s.typed * 100.0 : 0.0;
+    double net = raw * acc / 100.0;
     printf("\n");
     printf("  chars read : %zu / %zu\n", s.typed, s.target);
     printf("  correct    : %zu  (%.2f%% accuracy)\n", s.correct, acc);
-    printf("  elapsed    : %.4f s\n", s.secs);
-    printf("  chars/sec  : %.0f\n", cps);
-    printf("  net  WPM   : %.0f\n", net);
-    printf("  raw  WPM   : %.0f\n", raw);
+    printf("  elapsed    : %.4f s  (%zu chars after the first read)\n", s.secs, (size_t)win);
+    if (reliable) {
+        printf("  chars/sec  : %.0f  (sustained, startup skew removed)\n", cps);
+        printf("  net  WPM   : %.0f\n", net);
+        printf("  raw  WPM   : %.0f\n", raw);
+    } else {
+        printf("  chars/sec  : too fast to measure (arrived in one burst, not paced)\n");
+    }
     if (s.typed < s.target) printf("  note: %zu characters never arrived\n", s.target - s.typed);
-    if (!bench) printf("  (this is interactive mode; --bench measures the raw ceiling without drawing)\n");
+    if (!bench) printf("  (interactive mode draws each frame; --bench is the raw ceiling)\n");
 }
 
 /* ---- bench mode: the raw ceiling, no echo, no drawing ---- */
@@ -115,8 +129,8 @@ static int run_bench(const char *target, size_t len) {
     fflush(stdout);
 
     struct timespec t0 = {0, 0}, t1 = {0, 0};
-    size_t i = 0;
-    int started = 0, aborted = 0;
+    size_t i = 0, first_count = 0;
+    int started = 0, aborted = 0, have_first = 0;
     char buf[4096];
     while (i < len) {
         fd_set fds; FD_ZERO(&fds); FD_SET(STDIN_FILENO, &fds);
@@ -134,11 +148,12 @@ static int run_bench(const char *target, size_t len) {
             if (c == 127 || c == 8) { if (i > 0) i--; continue; }
             typed[i++] = (char)c;
         }
+        if (!have_first) { first_count = i; have_first = 1; }   /* bytes that beat the first timestamp */
         if (aborted) break;
     }
     restore_term();
     if (aborted || !started) { printf("\naborted.\n"); free(typed); return 1; }
-    print_result(compute(target, typed, i, len, secs_between(t0, t1)), 1);
+    print_result(compute(target, typed, i, len, secs_between(t0, t1), first_count), 1);
     free(typed);
     return 0;
 }
@@ -262,8 +277,8 @@ static int run_tui(const char *target, size_t len) {
 
     Buf b = {0};
     struct timespec t0 = {0, 0}, t1 = {0, 0}, last_in = {0, 0};
-    size_t i = 0;
-    int started = 0, finished = 0, aborted = 0;
+    size_t i = 0, first_count = 0;
+    int started = 0, finished = 0, aborted = 0, have_first = 0;
     char buf[4096];
 
     render(&b, target, typed, i, len, line_start, nline, rows, 0.0, 0);
@@ -290,6 +305,7 @@ static int run_tui(const char *target, size_t len) {
                 if (c == 127 || c == 8) { if (i > 0) i--; continue; }
                 typed[i++] = (char)c;
             }
+            if (!have_first) { first_count = i; have_first = 1; }
             if (aborted || i >= len) finished = 1;
         } else if (sr < 0 && errno != EINTR) {
             break;
@@ -305,7 +321,7 @@ static int run_tui(const char *target, size_t len) {
     restore_term();
     free(b.p); free(line_start);
     if (aborted || g_quit || !started) { printf("aborted.\n"); free(typed); return 1; }
-    print_result(compute(target, typed, i, len, secs_between(t0, t1)), 0);
+    print_result(compute(target, typed, i, len, secs_between(t0, t1), first_count), 0);
     free(typed);
     return 0;
 }
