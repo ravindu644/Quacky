@@ -1,8 +1,12 @@
 #ifndef QUACKY_PARSE_H
 #define QUACKY_PARSE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "lex.h"     /* TokKind, stored on binary/unary Expr nodes */
+#include "value.h"   /* Str */
 
 /* The 32-bit portability assumptions, stated once so a future reader does not
    have to rediscover them on an armhf box (07 section 4). */
@@ -40,5 +44,62 @@ void print_diagnostic(const char *file, const char *src,
 _Noreturn void syntax_error(const char *file, const char *src,
                            int line, int col, const char *fmt, ...)
     __attribute__((format(printf, 5, 6)));
+
+/* The AST (02 section 5). Everything is arena-allocated and freed once at exit.
+   `for` and `elif` never appear as node kinds: the parser desugars `for` into a
+   `while` and chains `elif`/`else` into nested S_IF nodes. */
+
+typedef enum {
+    E_INT, E_BOOL, E_STR, E_VAR, E_UNARY, E_BINARY, E_AND, E_OR, E_CALL
+} ExprKind;
+
+typedef struct Expr {
+    ExprKind kind;
+    int      line, col;
+    union {
+        int64_t ival;                                      /* E_INT */
+        bool    bval;                                      /* E_BOOL */
+        Str     sval;                                      /* E_STR */
+        Str     name;                                      /* E_VAR */
+        struct { TokKind op; struct Expr *a, *b; } bin;    /* E_UNARY (a only), E_BINARY, E_AND, E_OR */
+        struct { Str name; struct Expr **args; int nargs; } call;  /* E_CALL */
+    };
+} Expr;
+
+typedef enum {
+    S_ASSIGN, S_CONST, S_IF, S_WHILE, S_RETURN, S_BREAK, S_CONTINUE,
+    S_SLEEP, S_TYPE, S_CALL, S_CHORD, S_HOLD, S_RELEASE, S_DELAY, S_REPEAT
+} StmtKind;
+
+/* A chord resolved at parse time: modifier bits plus up to six key usages.
+   `all` is set only for `release all`. */
+typedef struct { uint8_t mod; uint8_t usages[6]; int n; bool all; } Chord;
+
+/* One piece of a `type` line: literal text (escapes already decoded, arena
+   copied) or an interpolated expression. */
+typedef struct { enum { SEG_TEXT, SEG_EXPR } kind; Str text; Expr *expr; } Seg;
+
+typedef struct Block { struct Stmt **stmts; int n; } Block;
+
+typedef struct Stmt {
+    StmtKind kind;
+    int      line, col;
+    union {
+        struct { Str name; Expr *value; } assign;                        /* S_ASSIGN, S_CONST */
+        struct { Expr *cond; struct Block *then_b; struct Stmt *else_s; } iff;  /* S_IF; else_s: next S_IF or NULL */
+        struct { Expr *cond; struct Block *body; } loop;                 /* S_WHILE */
+        Expr *expr;                                                      /* S_RETURN (nullable), S_SLEEP, S_DELAY, S_REPEAT, S_CALL */
+        struct { Seg *segs; int nsegs; bool stop_output; } type;         /* S_TYPE */
+        Chord chord;                                                     /* S_CHORD, S_HOLD, S_RELEASE */
+    };
+} Stmt;
+
+typedef struct Func { Str name; Str *params; int nparams; Block *body; } Func;
+typedef struct Program { Block *top; Func **funcs; int nfuncs; } Program;
+
+/* Lex and parse the whole source into one arena-allocated Program. A syntax
+   error prints a diagnostic and exits 2 from inside; on success the returned
+   tree is complete. `src` is normalised in place (CRLF to LF). */
+Program *parse(Arena *a, const char *filename, char *src);
 
 #endif
