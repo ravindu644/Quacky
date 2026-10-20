@@ -89,11 +89,18 @@ static uint8_t base_mod(const Output *o) { return o->held_mod; }                
 ## 3. What each call emits
 
 ```c
-void out_type   (Output *o, const char *bytes, size_t len);   // a type segment, per code point
-void out_chord  (Output *o, uint8_t mods, const uint8_t *usages, int n);
-void out_hold   (Output *o, uint8_t mods, const uint8_t *usages, int n);
-void out_release(Output *o, uint8_t mods, const uint8_t *usages, int n, bool all);
+Status out_type   (Output *o, const char *bytes, size_t len, const char **err);
+Status out_chord  (Output *o, const Str *text, uint8_t mods, const uint8_t *usages, int n, const char **err);
+Status out_hold   (Output *o, const Str *text, uint8_t mods, const uint8_t *usages, int n, const char **err);
+Status out_release(Output *o, const Str *text, uint8_t mods, const uint8_t *usages, int n, bool all, const char **err);
 ```
+
+The fallible calls return a `Status` and set `*err` (mirroring `int_op`) rather than reaching
+into the evaluator, so `output.c` depends on nothing above it: the evaluator turns an `ST_ERR`
+into a runtime error at the offending statement's line/col, including I/O failures (EPIPE/EIO),
+the unmappable-character and six-key-rollover errors, and `release` of an unheld key. The `text`
+argument is the chord's source span (e.g. "ctrl + c"), carried on the `Chord` so the transcript
+can tag the action without reverse-mapping usages to names.
 
 `out_type` splits `bytes` into UTF-8 code points (a byte `< 0x80` is one char; `0xC0..0xDF`
 leads 2, `0xE0..0xEF` 3, `0xF0..0xF7` 4; malformed bytes are treated singly, never an error at

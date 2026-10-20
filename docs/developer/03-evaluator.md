@@ -86,6 +86,10 @@ Status exec_stmt(Interp *I, Stmt *s);
 Status exec_block(Interp *I, Block *b);   // loops over stmts, returns first non-OK
 ```
 
+Runtime errors are raised with `rt_error(Interp *I, int line, int col, const char *fmt, ...)`,
+taking the failing node's `line`/`col` rather than a `const Node *`: `Expr` and `Stmt` are
+distinct types with no shared node, and passing the two ints is simpler and UB-free (06 §4).
+
 ### 4.1 Default delay and `repeat`
 
 Two cross-statement behaviours live here rather than in the output module:
@@ -110,9 +114,9 @@ Two cross-statement behaviours live here rather than in the output module:
 | `S_SLEEP` | eval → int ≥ 0 else error → `out_sleep_ms(I->out, ms)` (05) |
 | `S_TYPE` | for each segment: text → emit bytes; expr → eval, `to_string`, emit; then `"\n"` unless `stop_output`. Emission goes through `out_type(I->out, bytes, len)` which does the per-code-point pacing and the US keymap (05) |
 | `S_CALL` | evaluate the call, discard the value (a no-value return is fine here) |
-| `S_CHORD` | `out_chord(I->out, c.mod, c.usages, c.n)` — press the resolved chord and release (05 §2) |
-| `S_HOLD` | `out_hold(...)` — add the chord's keys to the persistent held set |
-| `S_RELEASE` | `out_release(..., c.all)` — remove them (or clear all); releasing a key not held → error |
+| `S_CHORD` | `out_chord(...)`: press the resolved chord and release (05 §2) |
+| `S_HOLD` | `out_hold(...)`: add the chord's keys to the persistent held set |
+| `S_RELEASE` | `out_release(..., c.all)`: remove them (or clear all); releasing a key not held is an error |
 | `S_DELAY` | eval → int ≥ 0 else error → `out_set_default_delay(I->out, ms)` |
 | `S_REPEAT` | eval → int ≥ 0 else error → re-run `I->last_action` that many times (see §4.1); no preceding action → error |
 

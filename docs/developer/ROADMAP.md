@@ -82,41 +82,43 @@ Tick a box only when the item is implemented and verified as described in its ph
 - [x] `equal`/`compare`; the 32-bit `_Static_assert`s
 
 ## Phase 4. Evaluator (03)
-- [ ] `Interp` state; frames as 64-bucket FNV-1a hash maps; two-level scope with
+- [x] `Interp` state; frames as 64-bucket FNV-1a hash maps; two-level scope with
       lookup/assign/const and their error wording (matches 06)
-- [ ] Expression evaluation with the type matrix; type errors naming expected and actual types
-- [ ] Statement evaluation: assign, const, if, while, sleep, type, call
-- [ ] Function calls: GOSUB with a return stack, arity check, depth limit 200, `VAL_NONE` used
-      as an expression raises "returned no value"
-- [ ] Keystroke statements: chord, hold, release, delay; `repeat` via `last_action`; the
+- [x] Expression evaluation with the type matrix; type errors naming expected and actual types;
+      `rt_error` takes the failing node's line/col (there is no shared `Node` type, 06 §4)
+- [x] Statement evaluation: assign, const, if, while, sleep, type, call
+- [x] Function calls: a fresh frame parented to globals, arity check, depth limit 200,
+      `VAL_NONE` used as an expression raises "returned no value"
+- [x] Keystroke statements: chord, hold, release, delay; `repeat` via `last_action`; the
       default-delay `out_post_statement` after every statement
-- [ ] Hoisting of `func` declarations, startup, `SIGPIPE` ignore
+- [x] Hoisting of `func` declarations, startup, `SIGPIPE` ignore (ignore installed in `out_open`)
 
 ## Phase 5. Key tables (`keys.c`, 02 §4.4, 05 §4)
 - [x] Key-name table: modifiers with their bits and aliases, named keys with their usages,
       `endkey`; `key_lookup(name)` (landed early in Phase 2; the parser needs it to resolve chords)
 - [x] US char → `{modifier, usage}` table: letters, digits, shifted symbols with the Shift bit,
       and `\n` → enter, `\t` → tab, `\b` → backspace; `char_key(codepoint)`
-- [ ] One source of truth: the parser and the output module both call these (parser done; the
-      output module arrives in Phase 6)
+- [x] One source of truth: the parser resolves chords and `output.c`'s HID `out_type` maps
+      `type` characters through the same `char_key`
 
 ## Phase 6. Output module (05)
-- [ ] `Output` state; open per mode (`--hid` device `O_WRONLY`; `-o` file `O_APPEND|O_CREAT`;
+- [x] `Output` state; open per mode (`--hid` device `O_WRONLY`; `-o` file `O_APPEND|O_CREAT`;
       else stdout); `--check` opens nothing
-- [ ] The clock: `wait_tick`, `ts_add_ns`, the catch-up rule; `-d MS` with the 32-bit ns cap
-- [ ] `out_sleep_ms`, `out_set_default_delay`, `out_post_statement`
-- [ ] Transcript backend: `type` text verbatim, every key action as a tag
-- [ ] HID backend: the 8-byte report builder, press then release, the held set merged into
+- [x] The clock: `wait_tick`, `ts_add_ns`, the catch-up rule; `-d MS` with the 32-bit ns cap
+- [x] `out_sleep_ms`, `out_set_default_delay`, `out_post_statement`
+- [x] Transcript backend: `type` text verbatim, every key action as a tag (chord tag from the
+      source span kept on the `Chord`, so no reverse name lookup)
+- [x] HID backend: the 8-byte report builder, press then release, the held set merged into
       every report, six-key rollover error
-- [ ] Signals and failure: `SIGPIPE` ignored, `EPIPE`/`EIO`/`ESHUTDOWN`/`ENOSPC` to a runtime
-      error and exit 1
+- [x] Signals and failure: `SIGPIPE` ignored, write errors become a runtime error (exit 1);
+      the fallible `out_*` return a `Status` + `const char **err` so `output.c` needs no `Interp`
 
 ## Phase 7. CLI and wiring (`main.c`, 00, 06)
-- [ ] Option parsing: `--hid DEV`, `-o FILE`, `--check`, `-d MS`, `--help`; usage errors exit
-      64/66/73
-- [ ] Read file, run, map the result to exit 0 (ok) / 1 (runtime) / 2 (syntax)
-- [ ] End to end: a script runs as a transcript, `--check`s clean, and `--hid` to a regular
-      file writes the expected bytes
+- [x] Option parsing: `--hid DEV`, `-o FILE`, `--check`, `-d MS`, `--help`; usage errors exit
+      64/66/73, a `--hid` node that will not open exits 74 (`EX_IOERR`)
+- [x] Read file, run, map the result to exit 0 (ok) / 1 (runtime) / 2 (syntax)
+- [x] End to end: a script runs as a transcript, `--check`s clean, and `--hid` to a regular
+      file writes the expected bytes; `astdump.c` replaced by `main.c`
 
 ## Phase 8. Build and cross-compilation (07)
 - [ ] Makefile: the five musl cross targets and the native ASan+UBSan build; bare `make` prints
@@ -156,6 +158,21 @@ Tick a box only when the item is implemented and verified as described in its ph
       board or phone, covering `type`, chords, and `hold`/`release`
 
 ## Status log
+- 2026-10-20: Phases 4, 6 and 7 landed together (the evaluator needs the output module, whose
+  open modes need the CLI), so the interpreter now runs for real. Added `src/eval.{c,h}` (the
+  tree-walker: 64-bucket FNV-1a frames, two-level scope, the spec §3 type matrix, string
+  ownership per 04, `call_function` with the depth-200 limit, `repeat`/`last_action`, hoisting),
+  `src/output.{c,h}` (the transcript and HID backends, the absolute-deadline clock,
+  `sleep`/`delay`, the held-key set and six-key rollover), and `src/main.c` (the CLI and exit
+  codes); deleted the throwaway `src/astdump.c`. Also closed a frontend gap: string-literal
+  escapes are now decoded at parse time into immortal arena `QStr`s (`E_STR` holds a `QStr*`),
+  and the `Chord` keeps its source span for the transcript tag. Deviations from the blueprint,
+  recorded in 03/05/06: `rt_error` takes line/col not a `Node*`; the fallible `out_*` return a
+  `Status` + `const char **err` instead of touching `Interp`; a `--hid` node that will not open
+  exits 74. Verified: `make native` (ASan+UBSan) and i686/aarch64/riscv64 cross builds clean
+  under `-Werror -Wconversion`; a feature-covering transcript, all runtime-error classes with
+  carets, every exit code, a 20000-iteration string loop flat under ASan, and the `ctrl + c` /
+  `hold shift` + `a` / `release all` HID reports byte-correct.
 - 2026-10-20: Phase 3 landed. Expanded `src/value.h` to the full model (`Value`, `QStr`,
   `ValType`, `Status`) and added `src/value.c`: refcounting (`val_retain`/`val_release` plus the
   inline `str_retain`/`str_release`, immortal strings at `rc < 0`), `to_string` (`PRId64`,

@@ -6,7 +6,7 @@
 |---|---|---|---|
 | **Syntax** | lexer/parser, before anything runs | unterminated string, `break` outside loop, `func` inside `if`, duplicate `func`, unbalanced `${`, unknown key name, too many keys in a chord | 2 |
 | **Runtime** | evaluator / output | undefined variable, type mismatch, `/ 0`, const reassignment, arity, recursion depth, unmappable `type` character, `release` of an unheld key, `repeat` with no action, output/`EPIPE` | 1 |
-| Usage | `main` | unknown flag, unreadable script, cannot open `-o` file | 64 (`EX_USAGE`), 66 (`EX_NOINPUT`), 73 (`EX_CANTCREAT`) from `<sysexits.h>` |
+| Usage | `main` | unknown flag, unreadable script, cannot open `-o` file, `--hid` node will not open | 64 (`EX_USAGE`), 66 (`EX_NOINPUT`), 73 (`EX_CANTCREAT`), 74 (`EX_IOERR`) from `<sysexits.h>` |
 
 Exit 0 means the whole program ran. A syntax error therefore guarantees **no output was
 produced**, which matters for a tool whose output is append-only.
@@ -48,10 +48,12 @@ Lua files above are the template.
 ## 4. Raising
 
 ```c
-Status rt_error(Interp *I, const Node *at, const char *fmt, ...);   // formats into I->err, records at->line/col, returns ST_ERR
+Status rt_error(Interp *I, int line, int col, const char *fmt, ...);   // formats into I->err, records line/col, returns ST_ERR
 ```
 
-Call sites read `return rt_error(I, e, "undefined variable '%.*s'", (int)name.len, name.p);`.
+It takes the failing node's `line`/`col` directly rather than a `const Node *at`: `Expr` and
+`Stmt` are distinct types with no shared node, so the two ints are simpler and UB-free. Call
+sites read `return rt_error(I, e->line, e->col, "undefined variable '%.*s'", (int)name.len, name.p);`.
 `main` prints via the same `print_diagnostic(file, src, line, col, msg)` the parser uses, so
 both classes look identical to the user.
 
