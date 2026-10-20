@@ -22,6 +22,7 @@ typedef struct {
     long            tick_ns;        /* per-event tick, from -d; 0 disables the sleep */
     int64_t         default_delay;  /* ms inserted after every statement (the `delay` stmt); 0 = off */
     bool            started;        /* first emit snaps `next` to now */
+    bool            fast;           /* --fast: roll one typed key into the next (HID only) */
     uint8_t         held_mod;       /* modifier bits held by `hold`, merged into every report */
     uint8_t         held_key[6];    /* non-modifier usages held; 0 = empty slot */
     char            errbuf[128];    /* holds a formatted message so a returned *err stays valid */

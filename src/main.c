@@ -18,6 +18,7 @@ static const char USAGE[] =
     "  -o FILE           write the transcript to FILE (appended)\n"
     "  --check           parse only, report the first syntax error, write nothing\n"
     "  -d MS             milliseconds per key event (default 20, 0 = no pacing)\n"
+    "  --fast            roll each typed key into the next for ~2x HID throughput\n"
     "  --help            show this message\n";
 
 static char *read_file(const char *path) {
@@ -43,13 +44,14 @@ static _Noreturn void usage_error(const char *msg) {
 
 int main(int argc, char **argv) {
     const char *script = NULL, *hid_dev = NULL, *out_file = NULL;
-    bool check = false;
+    bool check = false, fast = false;
     int64_t tick_ms = 20;
 
     for (int i = 1; i < argc; i++) {
         const char *a = argv[i];
         if (strcmp(a, "--help") == 0 || strcmp(a, "-h") == 0) { fputs(USAGE, stdout); return 0; }
         else if (strcmp(a, "--check") == 0) check = true;
+        else if (strcmp(a, "--fast") == 0) fast = true;
         else if (strcmp(a, "--hid") == 0) { if (++i >= argc) usage_error("--hid needs a device"); hid_dev = argv[i]; }
         else if (strcmp(a, "-o") == 0)    { if (++i >= argc) usage_error("-o needs a file"); out_file = argv[i]; }
         else if (strcmp(a, "-d") == 0) {
@@ -80,6 +82,7 @@ int main(int argc, char **argv) {
         /* opening the gadget node vs creating a transcript file are different failures */
         return hid_dev ? EX_IOERR : EX_CANTCREAT;
     }
+    out.fast = fast;   /* rollover typing; only affects the HID backend */
 
     Interp I; memset(&I, 0, sizeof I);
     I.out = &out;
