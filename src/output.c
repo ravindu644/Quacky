@@ -35,9 +35,12 @@ static Status write_bytes(Output *o, const void *buf, size_t n, const char **err
 
 /* The clock: a running absolute deadline so wake-up latency never accumulates
    (05 §5). A zero tick disables pacing outright, which is what the tests use. */
-static void ts_add_ns(struct timespec *t, long ns) {
-    t->tv_nsec += ns;
-    while (t->tv_nsec >= 1000000000L) { t->tv_nsec -= 1000000000L; t->tv_sec++; }
+static void ts_add_ns(struct timespec *t, int64_t ns) {
+    /* Split first: tv_nsec is a 32-bit long on armhf/i686, so a whole `sleep 3000`
+       in ns (3e9) would overflow it. Each part is now < 1e9, so one carry suffices. */
+    t->tv_sec  += (time_t)(ns / 1000000000);
+    t->tv_nsec += (long)(ns % 1000000000);
+    if (t->tv_nsec >= 1000000000L) { t->tv_nsec -= 1000000000L; t->tv_sec++; }
 }
 static int64_t ts_diff_ns(const struct timespec *a, const struct timespec *b) {
     return (int64_t)(a->tv_sec - b->tv_sec) * 1000000000LL + (a->tv_nsec - b->tv_nsec);
@@ -60,7 +63,7 @@ bool out_open(Output *o, OutMode mode, const char *path, int64_t tick_ms) {
     o->mode = mode;
     if (tick_ms < 0) tick_ms = 0;
     if (tick_ms > OUT_MS_MAX) tick_ms = OUT_MS_MAX;
-    o->tick_ns = (long)tick_ms * 1000000L;
+    o->tick_ns = tick_ms * 1000000;
 
     if (mode == OUT_HID) {
         o->fd = open(path, O_WRONLY);   /* a device node: USB Arsenal created it, we do not */
@@ -213,7 +216,7 @@ Status out_release(Output *o, const Str *text, uint8_t mods, const uint8_t *usag
 
 void out_sleep_ms(Output *o, int64_t ms) {
     struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
-    ts_add_ns(&t, (long)ms * 1000000L);   /* ms validated >= 0 and capped by the evaluator */
+    ts_add_ns(&t, ms * 1000000);   /* ms validated >= 0 and capped by the evaluator */
     int rc; do { rc = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL); } while (rc == EINTR);
     /* The next key event fires right after the pause, not one tick later: clearing
        `started` makes wait_tick re-snap to now rather than add a tick to the old

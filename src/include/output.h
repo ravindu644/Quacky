@@ -19,7 +19,7 @@ typedef struct {
     int             fd;             /* -1 until opened */
     OutMode         mode;
     struct timespec next;           /* absolute deadline of the next key event, CLOCK_MONOTONIC */
-    long            tick_ns;        /* per-event tick, from -d; 0 disables the sleep */
+    int64_t         tick_ns;        /* per-event tick, from -d; 0 disables the sleep */
     int64_t         default_delay;  /* ms inserted after every statement (the `delay` stmt); 0 = off */
     bool            started;        /* first emit snaps `next` to now */
     bool            fast;           /* --fast: roll one typed key into the next (HID only) */
@@ -53,8 +53,9 @@ void out_sleep_ms         (Output *o, int64_t ms);
 void out_set_default_delay(Output *o, int64_t ms);
 void out_post_statement   (Output *o);   /* the evaluator calls this after each statement */
 
-/* The largest sleep/delay/tick argument, so tv_nsec math stays in range on a
-   32-bit long (05 §8). About 33 minutes. */
+/* The largest sleep/delay/tick argument (about 33 minutes). The ns math is done
+   in int64_t and split into seconds before it touches tv_nsec, since a 32-bit
+   long overflows past ~2147 ms in nanoseconds (05 §8). */
 #define OUT_MS_MAX 2000000
 
 #endif
