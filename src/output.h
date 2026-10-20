@@ -31,7 +31,7 @@ typedef struct {
 /* Open the backend once at startup, before any statement runs, so a bad path or
    an absent gadget node fails before a single key is pressed. path is the device
    (OUT_HID) or the transcript file; a NULL path in transcript mode means stdout.
-   tick_ms is the per-event tick (20 default, 0 off), capped so the ns math stays
+   tick_ms is the per-event tick (5 default, 0 off), capped so the ns math stays
    in range on 32-bit. Returns false with errno set on open failure; the caller
    maps that to the right usage exit code. Installs the SIGPIPE ignore. */
 bool out_open(Output *o, OutMode mode, const char *path, int64_t tick_ms);
