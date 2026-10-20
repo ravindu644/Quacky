@@ -58,8 +58,18 @@ find-cc = $(shell \
 		echo "/opt/cross/bin/$(1)-gcc"; \
 	fi)
 
+# qtype (tools/qtype.c) is the standalone typing-speed meter. find-cc needs a
+# literal triple, so resolve the per-arch cross-compilers here for `make qtype`.
+QTYPE_SRC   := tools/qtype.c
+QTYPE_FLAGS := -O2 -Wall -Wextra -Wconversion -static
+QT_CC_x86_64  := $(call find-cc,x86_64-linux-musl)
+QT_CC_aarch64 := $(call find-cc,aarch64-linux-musl)
+QT_CC_armhf   := $(call find-cc,arm-linux-musleabihf)
+QT_CC_x86     := $(call find-cc,i686-linux-musl)
+QT_CC_riscv64 := $(call find-cc,riscv64-linux-musl)
+
 .PHONY: all help clean native x86_64 aarch64 armhf x86 riscv64 \
-        all-build tarball all-tarball debug-hardened module bump format
+        all-build tarball all-tarball debug-hardened module bump format qtype
 
 all: help
 
@@ -79,6 +89,7 @@ help:
 	@echo "  make tarball     - Package the current binary"
 	@echo "  make all-tarball - Build all and package one distribution"
 	@echo "  make module      - Build the phone archs into a KernelSU/Magisk zip"
+	@echo "  make qtype       - Build the qtype typing meter for all archs + a tarball"
 	@echo ""
 	@echo "Options:"
 	@echo "  V=1            - Show full compiler commands"
@@ -96,7 +107,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(CC) $(CFLAGS) -c $< -o $@
 
-$(BINARY_NAME): $(OBJS)
+$(OUT_DIR)/$(BINARY_NAME): $(OBJS)
 	$(msg_ld)
 	$(Q)mkdir -p $(OUT_DIR)
 	$(Q)$(CC) $(OBJS) -o $(OUT_DIR)/$(BINARY_NAME) $(LDFLAGS)
@@ -119,32 +130,32 @@ else
 endif
 
 native:
-	@if [ -n "$(NATIVE_CC)" ]; then $(MAKE) -j$(NPROC) $(BINARY_NAME) CC="$(NATIVE_CC)"; \
+	@if [ -n "$(NATIVE_CC)" ]; then $(MAKE) -j$(NPROC) $(OUT_DIR)/$(BINARY_NAME) CC="$(NATIVE_CC)"; \
 	else echo "Error: $(NATIVE_ARCH)-linux-musl-gcc not found (set MUSL_CROSS)"; exit 1; fi
 
 x86_64:
 	@CROSS_CC="$(call find-cc,x86_64-linux-musl)"; \
-	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(BINARY_NAME) CC=$$CROSS_CC; \
+	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(OUT_DIR)/$(BINARY_NAME) CC=$$CROSS_CC; \
 	else echo "Error: x86_64-linux-musl-gcc not found (set MUSL_CROSS)"; exit 1; fi
 
 aarch64:
 	@CROSS_CC="$(call find-cc,aarch64-linux-musl)"; \
-	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(BINARY_NAME) CC=$$CROSS_CC; \
+	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(OUT_DIR)/$(BINARY_NAME) CC=$$CROSS_CC; \
 	else echo "Error: aarch64-linux-musl-gcc not found (set MUSL_CROSS)"; exit 1; fi
 
 armhf:
 	@CROSS_CC="$(call find-cc,arm-linux-musleabihf)"; \
-	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(BINARY_NAME) CC=$$CROSS_CC; \
+	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(OUT_DIR)/$(BINARY_NAME) CC=$$CROSS_CC; \
 	else echo "Error: arm-linux-musleabihf-gcc not found (set MUSL_CROSS)"; exit 1; fi
 
 x86:
 	@CROSS_CC="$(call find-cc,i686-linux-musl)"; \
-	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(BINARY_NAME) CC=$$CROSS_CC; \
+	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(OUT_DIR)/$(BINARY_NAME) CC=$$CROSS_CC; \
 	else echo "Error: i686-linux-musl-gcc not found (set MUSL_CROSS)"; exit 1; fi
 
 riscv64:
 	@CROSS_CC="$(call find-cc,riscv64-linux-musl)"; \
-	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(BINARY_NAME) CC=$$CROSS_CC; \
+	if [ -n "$$CROSS_CC" ]; then $(MAKE) -j$(NPROC) $(OUT_DIR)/$(BINARY_NAME) CC=$$CROSS_CC; \
 	else echo "Error: riscv64-linux-musl-gcc not found (set MUSL_CROSS)"; exit 1; fi
 
 # A host build (glibc) with sanitizers, for the test suite. Not static musl.
@@ -193,6 +204,28 @@ all-tarball: all-build
 	tar -czf $$TARBALL -C $$TEMP_DIR $$ROOT_DIR; \
 	rm -rf $$TEMP_DIR; \
 	echo "[+] Created: $$TARBALL ($$(du -h $$TARBALL | cut -f1))"
+
+# Cross-build the qtype typing-speed meter for every arch and tar the set.
+qtype:
+	@mkdir -p $(OUT_DIR)
+	@set -e; \
+	build() { \
+		a=$$1; cc=$$2; \
+		[ -n "$$cc" ] || { echo "Error: musl toolchain for qtype $$a not found (set MUSL_CROSS)"; exit 1; }; \
+		printf "  CC      qtype ($$a)\n"; \
+		"$$cc" $(QTYPE_FLAGS) $(QTYPE_SRC) -o $(OUT_DIR)/qtype-$$a; \
+		if [ -z "$(NO_STRIP)" ]; then s=$$(echo "$$cc" | sed 's/-gcc$$/-strip/'); "$$s" -s $(OUT_DIR)/qtype-$$a 2>/dev/null || true; fi; \
+	}; \
+	build x86_64  "$(QT_CC_x86_64)"; \
+	build aarch64 "$(QT_CC_aarch64)"; \
+	build armhf   "$(QT_CC_armhf)"; \
+	build x86     "$(QT_CC_x86)"; \
+	build riscv64 "$(QT_CC_riscv64)"; \
+	ROOT="qtype-v$(VERSION)"; TARBALL="$(OUT_DIR)/qtype-v$(VERSION).tar.gz"; \
+	TEMP=$$(mktemp -d); mkdir -p "$$TEMP/$$ROOT"; \
+	for a in x86_64 aarch64 armhf x86 riscv64; do cp $(OUT_DIR)/qtype-$$a "$$TEMP/$$ROOT/"; done; \
+	tar -czf "$$TARBALL" -C "$$TEMP" "$$ROOT"; rm -rf "$$TEMP"; \
+	echo "[+] Built: $$TARBALL ($$(du -h "$$TARBALL" | cut -f1))"
 
 # One zip for every phone: customize.sh keeps the binary for the device ABI.
 module:

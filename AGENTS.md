@@ -28,7 +28,8 @@ prints help. Details are in
   `i686`, `aarch64`, `arm-musleabihf` and `riscv64`. `find-cc` also honours `MUSL_CROSS=<dir>`.
 - Per-arch targets `make native | x86_64 | aarch64 | armhf | x86 | riscv64` build one static binary
   into `output/`. `make all-build` builds all five; `make tarball` / `make all-tarball` package them;
-  `make module` zips the phone archs into a KernelSU/Magisk module. `make clean` wipes `output/`.
+  `make module` zips the phone archs into a KernelSU/Magisk module; `make qtype` cross-builds the
+  `tools/qtype` meter for every arch into a tarball. `make clean` wipes `output/`.
 - **`make debug-hardened`** is the one that builds with ASan+UBSan (host glibc, `output/quacky-hardened`),
   and the tests run it. `make native` is a plain static build, not instrumented.
 - Logs are kernel-style (`CC`/`LD`/`STRIP`); `V=1` shows full commands.

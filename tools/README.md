@@ -19,10 +19,14 @@ gadget typing at full tilt.
 </p>
 
 ```sh
-make qtype                      # or: cc -O2 -Wall -Wextra -o tools/qtype tools/qtype.c
+cc -O2 -Wall -Wextra -o tools/qtype tools/qtype.c   # quick host build
 ./tools/qtype passage.txt       # interactive: dim hint, your typing overlaid, live stats
 ./tools/qtype --bench passage.txt   # no echo, no drawing: the raw ceiling
 ```
+
+`make qtype` cross-builds a static `qtype` for every architecture and packages them as
+`output/qtype-v<version>.tar.gz`, so the meter can run on whichever machine is receiving the
+keystrokes.
 
 Two modes. The default is an interactive view, like MonkeyType: the passage shows as a dim hint,
 typed characters overlay it (correct in normal weight, wrong in red on the expected glyph), a
