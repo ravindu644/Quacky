@@ -1,7 +1,7 @@
 # forward calls via hoisting, recursion, global write from a function
-type ${add(2, 3)}
-type ${fib(20)}
-type ${later()}
+typeln ${add(2, 3)}
+typeln ${fib(20)}
+typeln ${later()}
 func add a b
   return a + b
 end
@@ -17,4 +17,4 @@ func bump
   g = g + 10
 end
 bump()
-type ${g}
+typeln ${g}

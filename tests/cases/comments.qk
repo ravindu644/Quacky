@@ -3,7 +3,7 @@ x = 5    # trailing comment
 #[ a block
    comment across
    lines ]#
-type x is $x
-type keep # inside
+typeln x is $x
+typeln keep # inside
 y = "a # b"
-type ${y}
+typeln ${y}

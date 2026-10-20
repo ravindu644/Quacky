@@ -80,7 +80,7 @@ if [ "${QK_SKIP_TIMING:-0}" != 1 ]; then
         TQ=../bin/quacky-x86_64-linux-musl
     fi
     # 100 characters at 20 ms = 100 ticks = 2000 ms (first char immediate).
-    printf 'type %s\n' "$(printf 'a%.0s' $(seq 1 100))" > "$TMP/t100.qk"
+    printf 'typeln %s\n' "$(printf 'a%.0s' $(seq 1 100))" > "$TMP/t100.qk"
     t0=$(date +%s%N); "$TQ" -d 20 -o /dev/null "$TMP/t100.qk"; t1=$(date +%s%N)
     ms=$(( (t1 - t0) / 1000000 ))
     if [ "$ms" -ge 1990 ] && [ "$ms" -le 2150 ]; then ok; else bad "timing 100ch (${ms}ms, want 1990-2150)"; fi
@@ -94,7 +94,7 @@ if [ "${QK_SKIP_TIMING:-0}" != 1 ]; then
     if [ "$ms" -ge 480 ] && [ "$ms" -le 520 ]; then ok; else bad "timing sleep (${ms}ms, want 480-520)"; fi
 
     # Drift: 500 characters at 10 ms must finish inside 5000 + 60 ms.
-    printf 'type %s\n' "$(printf 'a%.0s' $(seq 1 500))" > "$TMP/t500.qk"
+    printf 'typeln %s\n' "$(printf 'a%.0s' $(seq 1 500))" > "$TMP/t500.qk"
     t0=$(date +%s%N); "$TQ" -d 10 -o /dev/null "$TMP/t500.qk"; t1=$(date +%s%N)
     ms=$(( (t1 - t0) / 1000000 ))
     if [ "$ms" -le 5060 ] && [ "$ms" -ge 4990 ]; then ok; else bad "timing drift (${ms}ms, want 4990-5060)"; fi

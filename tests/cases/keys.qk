@@ -6,5 +6,5 @@ delay 0
 hold shift
 a
 release all
-type Hi!
+typeln Hi!
 repeat 2

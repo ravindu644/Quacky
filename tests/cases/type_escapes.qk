@@ -1,15 +1,15 @@
-type a\tb\nc
-type back\\slash
-type dollar \$var
-type hex \x41\x42
-type oct \0101
+typeln a\tb\nc
+typeln back\\slash
+typeln dollar \$var
+typeln hex \x41\x42
+typeln oct \0101
 x = 7
-type x is $x
-type calc ${x * 6}
-type lone $ here
-type has # hash
-type u ${"na" + "ive"}
-type uni café ☕
-type
+typeln x is $x
+typeln calc ${x * 6}
+typeln lone $ here
+typeln has # hash
+typeln u ${"na" + "ive"}
+typeln uni café ☕
+typeln
 type nonewline\c
-type after
+typeln after

@@ -1,10 +1,10 @@
 # if/elif/else, nested while with break/continue, inclusive and empty for
 if 1 < 2 then
-  type less
+  typeln less
 elif 1 == 2 then
-  type eq
+  typeln eq
 else
-  type greater
+  typeln greater
 fi
 i = 0
 while i < 3 do
@@ -12,20 +12,20 @@ while i < 3 do
   while j < 3 do
     j = j + 1
     if j == 2 then continue fi
-    type i=$i j=$j
+    typeln i=$i j=$j
   done
   i = i + 1
 done
 for k in 1..3 do
-  type k=$k
+  typeln k=$k
 done
 for k in 5..1 do
-  type never
+  typeln never
 done
-type for-empty-ok
+typeln for-empty-ok
 n = 0
 while true do
   if n == 2 then break fi
-  type n=$n
+  typeln n=$n
   n = n + 1
 done

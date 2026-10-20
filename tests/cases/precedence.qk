@@ -1,9 +1,9 @@
 # C precedence, left associativity, grouping
-type ${1 + 2 * 3}
-type ${(1 + 2) * 3}
-type ${8 - 2 - 1}
-type ${2 * 3 + 4 * 5}
-type ${1 << 2 + 1}
-type ${!true || true}
-type ${true && false || true}
-type ${!(1 == 2)}
+typeln ${1 + 2 * 3}
+typeln ${(1 + 2) * 3}
+typeln ${8 - 2 - 1}
+typeln ${2 * 3 + 4 * 5}
+typeln ${1 << 2 + 1}
+typeln ${!true || true}
+typeln ${true && false || true}
+typeln ${!(1 == 2)}

@@ -1,15 +1,15 @@
 # concat with coercion, ordering, cross-type equality, a refcount growth loop
-type ${"n=" + 42}
-type ${"b=" + true}
-type ${"a" + "b" + "c"}
-type ${"abc" < "abd"}
-type ${"abc" < "ab"}
-type ${1 == "1"}
-type ${1 != "1"}
+typeln ${"n=" + 42}
+typeln ${"b=" + true}
+typeln ${"a" + "b" + "c"}
+typeln ${"abc" < "abd"}
+typeln ${"abc" < "ab"}
+typeln ${1 == "1"}
+typeln ${1 != "1"}
 s = ""
 i = 0
 while i < 100 do
   s = s + "x"
   i = i + 1
 done
-type $s
+typeln $s
