@@ -124,10 +124,14 @@ static Status call_function(Interp *I, Func *f, Value *args, int nargs, Value *o
     Frame *fr = new_frame(I->globals);              /* parent is globals, not the caller: two-level scope */
     for (int i = 0; i < nargs; i++) insert(fr, f->params[i], args[i], false);
 
+    /* `repeat` state is per frame: an action recorded inside the body names this
+       frame's locals, so it must not leak out to a `repeat` in the caller. */
     Frame *saved_frame = I->frame; I->frame = fr;
+    Stmt *saved_action = I->last_action; I->last_action = NULL;
     Value saved_ret = I->ret; I->ret = (Value){ VAL_NONE, .i = 0 };
     Status s = exec_block(I, f->body);
     I->frame = saved_frame;
+    I->last_action = saved_action;
 
     Value result = (s == ST_RETURN) ? I->ret : (Value){ VAL_NONE, .i = 0 };
     I->ret = saved_ret;
