@@ -197,8 +197,10 @@ void out_sleep_ms(Output *o, int64_t ms) {
     struct timespec t; clock_gettime(CLOCK_MONOTONIC, &t);
     ts_add_ns(&t, (long)ms * 1000000L);   /* ms validated >= 0 and capped by the evaluator */
     int rc; do { rc = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL); } while (rc == EINTR);
-    o->next = t;        /* the next key event is due right after the pause, not a tick later */
-    o->started = true;
+    /* The next key event fires right after the pause, not one tick later: clearing
+       `started` makes wait_tick re-snap to now rather than add a tick to the old
+       deadline (05 §6; a `sleep 500` then a key lands at 500 ms, not 520). */
+    o->started = false;
 }
 
 void out_set_default_delay(Output *o, int64_t ms) { o->default_delay = ms; }
