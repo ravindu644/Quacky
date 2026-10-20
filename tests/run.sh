@@ -41,6 +41,11 @@ for qk in cases/*.qk; do
         "$QUACKY" -d 0 --fast --hid "$dev" "$qk" >/dev/null 2>&1
         if cmp -s "$dev" "$name.fast.hid"; then ok; else bad "$qk --fast hid bytes"; fi
     fi
+    if [ -f "$name.ultra.hid" ]; then
+        dev=$TMP/udev; : > "$dev"
+        "$QUACKY" -d 0 --ultra --hid "$dev" "$qk" >/dev/null 2>&1
+        if cmp -s "$dev" "$name.ultra.hid"; then ok; else bad "$qk --ultra hid bytes"; fi
+    fi
     # --check parses only and writes nothing
     chk=$TMP/chk; : > "$chk"
     if "$QUACKY" --check "$qk" >"$chk" 2>/dev/null && [ ! -s "$chk" ]; then ok; else bad "$qk --check"; fi

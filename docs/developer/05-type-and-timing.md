@@ -93,6 +93,21 @@ static uint8_t base_mod(const Output *o) { return o->held_mod; }                
   different shift, like `aA`) still gets its own release first, so the host sees a fresh
   down-edge, and the last key is released when the run ends. This roughly halves the reports
   (measured ~2x throughput) and is off by default, so the default byte stream is unchanged.
+- **`--ultra` frame packing (opt-in, typed characters only).** A report has six key slots and one
+  modifier byte, and the host generates a character on each slot's down-edge. So a run of distinct
+  characters that share a modifier can ride in one report: `out_type_ultra` fills a frame greedily
+  and emits up to six keys at once, and the host sees up to six down-edges in a single USB poll. A
+  frame breaks on a modifier change, a repeated usage (a key present twice is still one key), or at
+  six slots. Consecutive frames roll with no release between them when they share no usage; the next
+  report drops the old slots (up-edges) and adds the new ones (down-edges) in the same poll. A shared
+  usage forces a release report first so the repeated character keeps its own down-edge. The result
+  is up to ~6x on runs of distinct unshifted characters (the typing-test alphabet
+  `abc…xyz0-9 -=;',./` is the best case) and degrades to the `--fast` rate on prose full of repeats
+  or shifted keys. `--ultra` takes precedence over `--fast`. The one assumption it adds: the host
+  must process the key slots in report order, which Linux evdev does; a host that reorders a
+  multi-key report would type the frame scrambled, so this is a benchmark mode, not the safe default.
+  Correctness is pinned by the `rollover.ultra.hid` golden (08), which captures the shift-break,
+  the roll, and the repeat-break in one line.
 
 ## 3. What each call emits
 

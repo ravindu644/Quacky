@@ -116,24 +116,90 @@ static Status tag(Output *o, const char *verb, const Str *text, const char **err
     return write_bytes(o, line, len, err);
 }
 
+/* Decode one UTF-8 scalar at bytes[i] (i < len). Returns the byte length consumed
+   (>= 1) and sets *cp. A malformed lead, a bad continuation, or a scalar truncated
+   at the end passes through as a single raw byte: this layer never errors on bytes,
+   only the keymap does. */
+static int decode_utf8(const char *bytes, size_t len, size_t i, uint32_t *cp) {
+    unsigned char b = (unsigned char)bytes[i];
+    int cplen; uint32_t c;
+    if      (b < 0x80)               { cplen = 1; c = b; }
+    else if (b >= 0xC0 && b <= 0xDF) { cplen = 2; c = b & 0x1Fu; }
+    else if (b >= 0xE0 && b <= 0xEF) { cplen = 3; c = b & 0x0Fu; }
+    else if (b >= 0xF0 && b <= 0xF7) { cplen = 4; c = b & 0x07u; }
+    else                             { cplen = 1; c = b; }   /* malformed lead, pass singly */
+    if (i + (size_t)cplen > len) { *cp = b; return 1; }       /* truncated at the end */
+    for (int k = 1; k < cplen; k++) {
+        unsigned char cc = (unsigned char)bytes[i + (size_t)k];
+        if ((cc & 0xC0u) != 0x80u) { *cp = b; return 1; }     /* bad continuation */
+        c = (c << 6) | (cc & 0x3Fu);
+    }
+    *cp = c;
+    return cplen;
+}
+
+static bool usage_in(const uint8_t *set, int n, uint8_t u) {
+    for (int k = 0; k < n; k++) if (set[k] == u) return true;
+    return false;
+}
+
+/* --ultra (HID, typed characters only). A boot-keyboard report can carry six key
+   usages, and the host generates a character on each usage's down-edge. So a run of
+   distinct characters that share one modifier can ride in a single report: the host
+   sees up to six down-edges in one USB poll instead of one. A frame breaks on a
+   modifier change (the report has one modifier byte), on a repeated usage (a key
+   present twice is still one key), or at six keys. Consecutive frames roll with no
+   release between them when they share no usage: the next report drops the old keys
+   (up-edges) and adds the new ones (down-edges) in the same poll. A shared usage
+   forces a release first, so every character keeps its own down-edge. This reaches
+   ~6x on runs of distinct unshifted keys and falls back to the --fast rate on text
+   full of repeats or shifted keys. Order within a report is honoured by Linux evdev;
+   some hosts may reorder a multi-key frame, so the gain is a benchmark, not a promise. */
+static Status out_type_ultra(Output *o, const char *bytes, size_t len, const char **err) {
+    uint8_t prev[6]; int prev_n = 0;   /* the typed keys the last report left pressed */
+    size_t i = 0;
+    while (i < len) {
+        uint32_t cp;
+        int cplen = decode_utf8(bytes, len, i, &cp);
+        CharKey ck = char_key((int)cp);
+        if (!ck.ok) {
+            if (prev_n) { Status s = write_held(o, err); if (s != ST_OK) return s; }
+            snprintf(o->errbuf, sizeof o->errbuf, "no US-layout key for U+%04" PRIX32, cp);
+            *err = o->errbuf;
+            return ST_ERR;   /* same message and partial-output behaviour as the slow path */
+        }
+
+        uint8_t frame[6]; int frame_n = 0; uint8_t frame_mod = ck.mod;
+        do {
+            frame[frame_n++] = ck.usage;
+            i += (size_t)cplen;
+            if (frame_n == 6 || i >= len) break;
+            cplen = decode_utf8(bytes, len, i, &cp);
+            ck = char_key((int)cp);
+        } while (ck.ok && ck.mod == frame_mod && !usage_in(frame, frame_n, ck.usage));
+
+        if (prev_n) {
+            bool share = false;
+            for (int k = 0; k < frame_n && !share; k++) share = usage_in(prev, prev_n, frame[k]);
+            if (share) { Status s = write_held(o, err); if (s != ST_OK) return s; }
+        }
+        wait_tick(o);
+        Status s = write_report(o, frame_mod, frame, frame_n, err);
+        if (s != ST_OK) return s;
+        memcpy(prev, frame, (size_t)frame_n); prev_n = frame_n;
+    }
+    if (prev_n) return write_held(o, err);   /* let go of the last frame */
+    return ST_OK;
+}
+
 Status out_type(Output *o, const char *bytes, size_t len, const char **err) {
+    if (o->mode == OUT_HID && o->ultra) return out_type_ultra(o, bytes, len, err);
     size_t i = 0;
     uint8_t cur_usage = 0;   /* --fast: the typed key still held from the previous char */
     bool pressed = false;
     while (i < len) {
-        unsigned char b = (unsigned char)bytes[i];
-        int cplen; uint32_t cp;
-        if      (b < 0x80)               { cplen = 1; cp = b; }
-        else if (b >= 0xC0 && b <= 0xDF) { cplen = 2; cp = b & 0x1Fu; }
-        else if (b >= 0xE0 && b <= 0xEF) { cplen = 3; cp = b & 0x0Fu; }
-        else if (b >= 0xF0 && b <= 0xF7) { cplen = 4; cp = b & 0x07u; }
-        else                             { cplen = 1; cp = b; }   /* malformed lead, pass singly */
-        if (i + (size_t)cplen > len) { cplen = 1; cp = b; }        /* truncated at the end */
-        for (int k = 1; k < cplen; k++) {
-            unsigned char c = (unsigned char)bytes[i + (size_t)k];
-            if ((c & 0xC0u) != 0x80u) { cplen = 1; cp = b; break; }   /* bad continuation */
-            cp = (cp << 6) | (c & 0x3Fu);
-        }
+        uint32_t cp;
+        int cplen = decode_utf8(bytes, len, i, &cp);
 
         wait_tick(o);
         if (o->mode == OUT_TRANSCRIPT) {

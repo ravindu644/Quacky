@@ -46,7 +46,7 @@ prints help. Details are in
 
 | Path | What lives there |
 |---|---|
-| `src/main.c` | CLI (`--hid DEV`, `-o FILE`, `--check`, `-d MS`, `--fast`), read the file, run, exit codes |
+| `src/main.c` | CLI (`--hid DEV`, `-o FILE`, `--check`, `-d MS`, `--fast`, `--ultra`), read the file, run, exit codes |
 | `src/lex.c` | tokens, `type` raw mode, chords |
 | `src/parse.c` | recursive-descent statements, Pratt expressions, the arena |
 | `src/eval.c` | the tree-walker: frames, status codes, calls, keystroke statements |

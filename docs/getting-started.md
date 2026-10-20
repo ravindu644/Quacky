@@ -79,7 +79,17 @@ quacky [--hid DEV | -o FILE] [--check] [-d MS] [--fast] SCRIPT.qk
 | `--check` | Parse only. Report the first syntax error, write no output, exit 0 if the script is valid. |
 | `-d MS` | Milliseconds per key event. Default is 5. `0` types as fast as possible. |
 | `--fast` | Roll each typed key into the next for roughly double the typing speed. Only affects `--hid`. |
+| `--ultra` | Pack a run of distinct, same-shift characters into one keyboard report (up to six keys), for up to ~6x on such runs. Only affects `--hid`; takes precedence over `--fast`. See the note below. |
 | `--help`, `-h` | Print usage and exit. |
+
+`--ultra` is the fastest mode on favourable text, but it is not a free upgrade over `--fast`. A single
+keyboard report carries six key slots and one modifier, and the host registers a character as each
+slot's key goes down. So `--ultra` can send up to six characters in one report only when they are all
+different and all need the same shift state; a repeated letter (`ll`, `ss`), a change of case, or a
+shifted symbol starts a new report. On ordinary prose it lands close to `--fast`; its headline speed
+shows on runs of distinct lowercase or unshifted characters. One caveat: it relies on the receiving
+computer honouring the order of keys within a report, which Linux does and some other systems may not,
+so prefer `--fast` when correctness on an unknown host matters more than peak speed.
 
 ## Exit codes
 
