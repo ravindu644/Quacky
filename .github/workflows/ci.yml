@@ -1,0 +1,110 @@
+name: Quacky CI
+
+# One workflow. Every push and pull request runs the golden test suite, then
+# builds the module zip and uploads it as an artifact. A v* tag, or a manual run
+# with tag_name, also publishes it as a GitHub release. The toolchains come from
+# Droidspaces' releases and are cached between runs.
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Publish a release for this tag (existing or new, must match QUACKY_VERSION)"
+        required: false
+        type: string
+
+permissions:
+  # Needed to create the release on a tag; a pull request token is read-only regardless
+  contents: write
+
+jobs:
+  build:
+    name: Test and build the module (aarch64, armhf, x86_64, x86)
+    runs-on: ubuntu-latest
+    env:
+      # The tag being released, if any
+      TAG: ${{ inputs.tag_name || (github.ref_type == 'tag' && github.ref_name) || '' }}
+      # Droidspaces' musl toolchains, published as release assets; the Makefile
+      # finds them in ~/toolchains/<triplet>-cross/bin
+      TOOLCHAINS_URL: https://github.com/ravindu644/Droidspaces-OSS/releases/download/compilers-25843896720
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    # One version, QUACKY_VERSION in src/include/quacky.h. A tag must match it, so
+    # a forgotten `make bump` fails here instead of shipping.
+    - name: Settle the version
+      run: |
+        VERSION=$(grep "define QUACKY_VERSION" src/include/quacky.h | awk '{print $3}' | tr -d '"')
+        if [ -n "$TAG" ]; then
+          [ "${TAG#v}" = "$VERSION" ] || { echo "Tag $TAG does not match QUACKY_VERSION $VERSION (run make bump NEW=${TAG#v})"; exit 1; }
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+    # The hardened build is host gcc (glibc) with ASan/UBSan, so it needs no cross
+    # toolchain and runs before the download. QK_SKIP_TIMING drops the wall-clock
+    # timing and fuzz cases, which run.sh documents as local-only; the shared
+    # runner cannot hold their tight bounds reliably.
+    - name: Run the golden test suite
+      run: |
+        make debug-hardened
+        QK_SKIP_TIMING=1 tests/run.sh
+
+    # The release URL names a fixed set of toolchains, so it is the whole key
+    - name: Cache Toolchains
+      id: toolchains
+      uses: actions/cache@v4
+      with:
+        path: ~/toolchains
+        key: musl-toolchains-${{ env.TOOLCHAINS_URL }}
+
+    - name: Download Toolchains
+      if: steps.toolchains.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p $HOME/toolchains
+        cd $HOME/toolchains
+        for t in aarch64-linux-musl arm-linux-musleabihf x86_64-linux-musl i686-linux-musl; do
+          echo "[*] Downloading $t toolchain..."
+          wget -q $TOOLCHAINS_URL/$t-cross.tar.zst
+          tar -xf $t-cross.tar.zst && rm $t-cross.tar.zst
+        done
+        echo "[+] Toolchains ready."
+
+    - name: Build the KernelSU/Magisk module
+      run: make module
+
+    # Every build, release or not, is named <version>-<commit> so the exact
+    # source a zip came from is legible from its filename, as Droidspaces does.
+    - name: Stage & Rename Artifacts
+      run: |
+        ZIP_NAME="quacky-v${VERSION}-$(git log -1 --pretty=%h).zip"
+        mkdir -p dist
+        mv output/quacky-v${VERSION}.zip dist/${ZIP_NAME}
+        (cd dist && sha256sum ${ZIP_NAME} > SHA256SUMS)
+        echo "ZIP_FILE=dist/${ZIP_NAME}" >> $GITHUB_ENV
+
+    - name: Upload Final Artifacts (module zip)
+      uses: actions/upload-artifact@v4
+      with:
+        name: quacky-artifacts
+        path: dist/
+        if-no-files-found: error
+        retention-days: 14
+
+    - name: Publish GitHub Release
+      if: env.TAG != ''
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ env.TAG }}
+        name: Quacky ${{ env.TAG }}
+        files: |
+          dist/*.zip
+          dist/SHA256SUMS
+        generate_release_notes: true
+        draft: false
+        prerelease: false
