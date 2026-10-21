@@ -22,16 +22,17 @@ typedef struct {
   struct timespec
       next; /* absolute deadline of the next key event, CLOCK_MONOTONIC */
   int64_t tick_ns;       /* per-event tick, from -d; 0 disables the sleep */
-  int64_t default_delay; /* ms inserted after every statement (the `delay`
-                            stmt); 0 = off */
-  bool started;          /* first emit snaps `next` to now */
-  bool fast;  /* --fast: roll one typed key into the next (HID only) */
+  int64_t default_delay; /* ms gap inserted between output actions, before each
+                            action but the first (the `delay` stmt); 0 = off */
+  bool seen_action; /* an output action has run, so the next one owes the gap */
+  bool started;     /* first emit snaps `next` to now */
+  bool fast;        /* --fast: roll one typed key into the next (HID only) */
   bool ultra; /* --ultra: pack a run of distinct same-mod keys per report (HID
                  only) */
   uint8_t held_mod; /* modifier bits held by `hold`, merged into every report */
   uint8_t held_key[6]; /* non-modifier usages held; 0 = empty slot */
-  char errbuf[128]; /* holds a formatted message so a returned *err stays valid
-                     */
+  char errbuf[128];  /* holds a formatted message so a returned *err stays valid
+                      */
   bool write_failed; /* set when an output write fails. Such a failure is
                         environmental (unplugged cable, host not configured,
                         broken pipe, full disk), never a fault in the script, so
@@ -65,8 +66,13 @@ Status out_release(Output *o, const Str *text, uint8_t mods,
    already validated the millisecond argument as a non-negative, capped int. */
 void out_sleep_ms(Output *o, int64_t ms);
 void out_set_default_delay(Output *o, int64_t ms);
-void out_post_statement(
-    Output *o); /* the evaluator calls this after each statement */
+/* The `keydelay` statement: the per-key-event tick, the in-script twin of -d.
+   ms is validated >= 0 and capped by the evaluator before it arrives here. */
+void out_set_tick(Output *o, int64_t ms);
+/* The evaluator calls this once at the start of each output statement; it
+   pauses default_delay before every action but the first (the gap between
+   keystrokes), so it never pads the start or end of a script. */
+void out_action_gap(Output *o);
 
 /* The largest sleep/delay/tick argument (about 33 minutes). The ns math is done
    in int64_t and split into seconds before it touches tv_nsec, since a 32-bit

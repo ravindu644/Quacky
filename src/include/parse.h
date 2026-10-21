@@ -97,6 +97,7 @@ typedef enum {
   S_HOLD,
   S_RELEASE,
   S_DELAY,
+  S_KEYDELAY,
   S_REPEAT
 } StmtKind;
 

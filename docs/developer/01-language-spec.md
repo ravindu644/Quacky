@@ -29,7 +29,7 @@ and small interpreters work.
 
 ```
 if then elif else fi while do done for in func end return break continue
-const true false sleep type typeln type_file typeln_file hold release delay repeat
+const true false sleep type typeln type_file typeln_file hold release delay keydelay repeat
 ```
 
 ### Key names (contextual, not reserved)
@@ -62,6 +62,7 @@ statement   = assignment
             | hold_stmt
             | release_stmt
             | delay_stmt
+            | keydelay_stmt
             | repeat_stmt
             | call_stmt ;
 
@@ -72,6 +73,7 @@ chord_stmt  = key { "+" key } ;                                      (* see §6 
 hold_stmt   = "hold" key { "+" key } ;
 release_stmt= "release" ( "all" | key { "+" key } ) ;
 delay_stmt  = "delay" expr ;                                         (* persistent default pause, ms *)
+keydelay_stmt = "keydelay" expr ;                                    (* persistent per-key tick, ms (in-script -d) *)
 repeat_stmt = "repeat" expr ;                                        (* re-run the previous action expr times *)
 key         = KEY_NAME | LETTER | DIGIT ;                            (* KEY_NAME from §6.1 *)
 
@@ -307,18 +309,26 @@ runtime shift logic, the table holds it. A code point with no US-layout key is a
 in HID mode (`no US-layout key for U+XXXX`); in transcript mode it is written verbatim. One
 documented hook (05) allows alternate layout tables later. v1 ships US QWERTY only.
 
-### 6.5 Pacing: `delay` and `repeat`
+### 6.5 Pacing: `delay`, `keydelay` and `repeat`
 
 ```
-delay 100                # from here on, pause 100 ms after every statement (delay 0 turns it off)
+delay 100                # from here on, a 100 ms gap between actions (delay 0 turns it off)
+keydelay 10              # and 10 ms between individual key events (the in-script -d)
 sleep 500                # one-shot pause of 500 ms, right here
 down
 repeat 5                 # press down five more times (six presses total)
 ```
 
-- `delay N` sets a **persistent** default pause inserted after every following statement; it is
-  distinct from `sleep N`, which pauses once. Both take an int ≥ 0 (ms); negative is a runtime
-  error. Default is `delay 0`.
+- `delay N` sets a **persistent** default pause inserted *between* the output actions a script
+  sends (keystrokes, `type`/`typeln`, chords, `hold`/`release`), never before the first or after
+  the last, and never on assignments or control flow. It is distinct from `sleep N`, which pauses
+  once where written and adds to the gap rather than replacing it. Both take an int ≥ 0 (ms);
+  negative is a runtime error. Default is `delay 0`.
+- `keydelay N` sets a **persistent** per-key-event tick, the gap between each character a `type`
+  emits and between chords, the in-script equivalent of the `-d` flag (it writes the same
+  `tick_ns`). This is a finer grain than `delay`: `delay` spaces whole actions, `keydelay` spaces
+  the keys within them. Int ≥ 0 (ms), negative is a runtime error; default `keydelay 0` is full
+  speed. A later `keydelay` or `-d` is just the value in effect from that point.
 - `repeat N` re-runs the immediately preceding keystroke, `type`, or chord statement N more
   times. `repeat` with no preceding action, or after a non-keystroke statement, is a runtime
   error.

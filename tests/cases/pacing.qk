@@ -1,0 +1,6 @@
+# delay and sleep show up as markers in a dry-run transcript
+delay 10
+typeln a
+sleep 30
+typeln b
+typeln c

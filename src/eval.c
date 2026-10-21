@@ -536,9 +536,31 @@ static Status exec_type_file(Interp *I, Stmt *s) {
   return r;
 }
 
+/* The output actions: statements that emit to the device. Two things key off
+   this set, the default-delay gap (before each) and `repeat` (remembers the
+   last), so it has one definition. */
+static bool stmt_is_action(StmtKind k) {
+  switch (k) {
+  case S_TYPE:
+  case S_TYPE_FILE:
+  case S_CHORD:
+  case S_HOLD:
+  case S_RELEASE:
+    return true;
+  default:
+    return false;
+  }
+}
+
 static Status exec_stmt(Interp *I, Stmt *s) {
   Status st = ST_OK;
   const char *err = NULL;
+
+  /* The default-delay gap falls once, before each output action (05 §6). A type
+     statement emits several segments but is still one action, so the gap lives
+     here at the statement boundary, not inside the per-segment out_* calls. */
+  if (stmt_is_action(s->kind))
+    out_action_gap(I->out);
 
   switch (s->kind) {
   case S_ASSIGN:
@@ -627,6 +649,16 @@ static Status exec_stmt(Interp *I, Stmt *s) {
     out_set_default_delay(I->out, ms);
     break;
   }
+  case S_KEYDELAY: {
+    int64_t ms;
+    st = eval_count(I, s->expr, "keydelay", &ms);
+    if (st != ST_OK)
+      return st;
+    if (ms > OUT_MS_MAX)
+      ms = OUT_MS_MAX;
+    out_set_tick(I->out, ms);
+    break;
+  }
   case S_REPEAT: {
     int64_t n;
     st = eval_count(I, s->expr, "repeat", &n);
@@ -636,9 +668,6 @@ static Status exec_stmt(Interp *I, Stmt *s) {
       return rt_error(I, s->line, s->col, "repeat with no preceding action");
     Stmt *action = I->last_action;
     for (int64_t k = 0; k < n; k++) {
-      if (k > 0)
-        out_post_statement(
-            I->out); /* each re-run is its own step for `delay` */
       Status r =
           exec_stmt(I, action); /* re-runs the action; keeps last_action */
       if (r != ST_OK)
@@ -683,19 +712,10 @@ static Status exec_stmt(Interp *I, Stmt *s) {
   /* `repeat` bookkeeping (03 §4.1): remember the last action; clear it on any
      other statement; `repeat` itself preserves it, so two in a row both work.
    */
-  switch (s->kind) {
-  case S_TYPE:
-  case S_TYPE_FILE:
-  case S_CHORD:
-  case S_HOLD:
-  case S_RELEASE:
+  if (stmt_is_action(s->kind))
     I->last_action = s;
-    break;
-  case S_REPEAT:
-    break;
-  default:
+  else if (s->kind != S_REPEAT)
     I->last_action = NULL;
-  }
   return ST_OK;
 }
 
@@ -704,8 +724,6 @@ static Status exec_block(Interp *I, Block *b) {
     Status s = exec_stmt(I, b->stmts[i]);
     if (s != ST_OK)
       return s;
-    out_post_statement(
-        I->out); /* the default delay fires after every statement (03 §4.1) */
   }
   return ST_OK;
 }

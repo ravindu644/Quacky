@@ -126,9 +126,13 @@ Pace between actions, not only between keys:
 - Add a `sleep` after an action the host needs time to react to: opening a run dialog, launching an
   app, loading a page. `type notepad\n` then `sleep 500` is far more reliable than typing into a
   window that is not ready yet.
-- Use the `delay` statement (off by default) to add a fixed gap after *every* statement when a whole
-  routine needs room to breathe, instead of inflating `-d`. `-d` paces individual keys; `delay`
-  paces steps.
+- Use the `delay` statement (off by default) to add a fixed gap *between* the keystrokes a routine
+  sends when it needs room to breathe, instead of inflating `-d`. It never pauses on assignments or
+  control flow, and a `sleep` adds to it. `-d` paces individual keys; `delay` paces the steps
+  between them.
+- Use the `keydelay` statement to change that individual-key pacing from inside the script: it is
+  the in-script `-d`, so you can type one passage slowly and the rest at full speed without touching
+  the command line.
 
 ## Exit codes
 

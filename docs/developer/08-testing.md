@@ -37,6 +37,7 @@ Required coverage (one case each, mapped to the spec):
 | `funcs` | forward call (hoisting), recursion (`fib 20`), arity error, no-value error, global write from function, const write error |
 | `type_escapes` | `\n \t \\ \$ \xHH \0NNN \c`, `$var`, `${expr}`, lone `$`, `#` inside line, empty `type`, UTF-8 string with multi-byte characters |
 | `comments` | `#` line, `#[ ]#` block across lines, `#` inside string literal kept |
+| `pacing` | a `delay` gap and an explicit `sleep` show as `[delay Nms]` / `[sleep Nms]` markers in the transcript, the gap falls between actions (not before the first), and the two stack additively |
 | `keys` | chords (`ctrl + c`, `ctrl + alt + delete`, lone `enter`), shifted chord target (`shift + a`), `hold`/`release` with the held set merged into later reports, `release all`, `delay` pacing, `repeat` of the previous action, `type` characters that need Shift. Checked in **both** backends: transcript tags in `keys.out`, exact bytes in `keys.hid` |
 | `errors/*` | one file per catalogue entry in 06 §5, plus syntax errors: `break` outside loop, unterminated string, unclosed `#[`, unbalanced `${`, `unknown key`, `too many keys in a chord`; and keystroke runtime errors: unmappable `type` char under `--hid`, `release` of an unheld key, `repeat` with no action |
 
@@ -62,6 +63,13 @@ Second timing case: `sleep 500` then `type x` must land `x` at 500 ms ± 20, not
 Drift test: 500 characters at `-d 10` must finish within 5 000 ms + 60 ms. A relative-sleep
 implementation accumulates ~50–100 µs per character and fails this; the absolute-deadline one
 passes with margin.
+
+`delay` cases (all at `-d 0`, so only the `delay` statement contributes): a `delay 200` script of
+pure assignments plus one type finishes in a few ms (the gap never pauses non-actions); `delay 200`
+between three typed lines is two gaps (~400 ms, none before the first or after the last); and
+`delay 200` with a `sleep 100` between two actions is ~300 ms, proving the two stack rather than
+override. A `keydelay` case types 10 characters at `keydelay 40` (with `-d 0`) and must land at
+~400 ms (10 gaps), showing the per-key tick is settable from inside the script.
 
 ## 3. Cross-architecture runs
 

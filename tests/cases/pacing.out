@@ -1,0 +1,6 @@
+a
+[sleep 30ms]
+[delay 10ms]
+b
+[delay 10ms]
+c

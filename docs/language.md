@@ -246,14 +246,22 @@ Releasing a key that is not held is an error, so a script cannot accidentally le
 
 ## Timing: delay, sleep, repeat
 
-- **`delay MS`** sets a default pause inserted after every following statement. It stays in effect
-  until you change it; `delay 0` turns it off. The default is 0.
+- **`delay MS`** sets a default pause inserted *between* the keystrokes a script sends (a chord,
+  `type`/`typeln`, `hold`/`release`), never before the first or after the last, and never on plain
+  assignments or control flow. A `sleep` adds to it rather than replacing it, so `delay 300` then a
+  `sleep 100` between two actions is a 400 ms gap. It stays in effect until you change it; `delay 0`
+  turns it off. The default is 0.
 - **`sleep MS`** pauses once, right now.
+- **`keydelay MS`** sets the gap between *individual key events* (each character a `type` sends, each
+  chord), the in-script twin of the `-d` command-line flag. It is a smaller-grained knob than
+  `delay`: `delay` pauses between whole actions, `keydelay` slows the typing within them. It stays in
+  effect until you change it; `keydelay 0` is full speed.
 - **`repeat N`** re-runs the previous keystroke, `type`, `typeln`, chord, `hold` or `release` N more
   times.
 
 ```
-delay 50             # from here on, pause 50 ms after each step
+delay 50             # from here on, a 50 ms gap between each step (action)
+keydelay 10          # and 10 ms between the individual keys within a step
 type opening...
 sleep 400            # wait once, e.g. for a window to appear
 down
@@ -262,6 +270,9 @@ repeat 5             # press Down six times in total
 
 `repeat` only follows an action. Put it right after the thing you want repeated; any other statement
 in between clears it.
+
+In a dry run (no `--hid`), every pause is shown so you can see the timing: an explicit `sleep` prints
+`[sleep 400ms]` and a `delay` gap prints `[delay 50ms]`, right where they happen in the output.
 
 ## Conditions: if / elif / else
 

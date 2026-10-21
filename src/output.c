@@ -86,6 +86,50 @@ static void wait_tick(Output *o) {
     o->next = now;
 }
 
+/* Transcript-only marker so a dry run shows the pauses it would insert. Best
+   effort: a failed write here (a dead pipe) is caught by the next real emit, so
+   pacing keeps its "cannot fail" contract. Nothing is printed for a zero pause
+   or in --hid mode. */
+static void pause_mark(Output *o, const char *verb, int64_t ms) {
+  if (o->mode != OUT_TRANSCRIPT || ms <= 0)
+    return;
+  const char *err = NULL;
+  char line[64];
+  int n = snprintf(line, sizeof line, "[%s %" PRId64 "ms]\n", verb, ms);
+  if (n > 0)
+    (void)write_bytes(
+        o, line, (size_t)n < sizeof line ? (size_t)n : sizeof line - 1, &err);
+}
+
+/* The raw absolute-deadline pause (05 §5). Clearing `started` makes the next
+   key re-snap to now rather than add a tick to the old deadline (05 §6; a sleep
+   500 then a key lands at 500 ms, not 520). */
+static void pause_ms(Output *o, int64_t ms) {
+  struct timespec t;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  ts_add_ns(&t,
+            ms * 1000000); /* ms validated >= 0 and capped by the evaluator */
+  int rc;
+  do {
+    rc = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
+  } while (rc == EINTR);
+  o->started = false;
+}
+
+/* The scripted default delay (the `delay` stmt): a gap inserted only BETWEEN
+   output actions, before each action but the first, so it never pads the start
+   or the end of a script. An explicit `sleep` is separate and adds on top of
+   this (03 §4.1). The evaluator calls this once at the start of each output
+   statement, so a multi-segment `type` is still one gap; a dry run shows it as
+   a [delay Nms] marker. */
+void out_action_gap(Output *o) {
+  if (o->seen_action && o->default_delay > 0) {
+    pause_mark(o, "delay", o->default_delay);
+    pause_ms(o, o->default_delay);
+  }
+  o->seen_action = true;
+}
+
 bool out_open(Output *o, OutMode mode, const char *path, int64_t tick_ms) {
   signal(SIGPIPE, SIG_IGN); /* a dead transcript reader becomes EPIPE, handled
                                as a runtime error */
@@ -424,24 +468,12 @@ Status out_release(Output *o, const Str *text, uint8_t mods,
 }
 
 void out_sleep_ms(Output *o, int64_t ms) {
-  struct timespec t;
-  clock_gettime(CLOCK_MONOTONIC, &t);
-  ts_add_ns(&t,
-            ms * 1000000); /* ms validated >= 0 and capped by the evaluator */
-  int rc;
-  do {
-    rc = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &t, NULL);
-  } while (rc == EINTR);
-  /* The next key event fires right after the pause, not one tick later:
-     clearing `started` makes wait_tick re-snap to now rather than add a tick to
-     the old deadline (05 §6; a `sleep 500` then a key lands at 500 ms, not
-     520). */
-  o->started = false;
+  pause_mark(o, "sleep", ms); /* a dry run shows the explicit pause too */
+  pause_ms(o, ms);
 }
 
 void out_set_default_delay(Output *o, int64_t ms) { o->default_delay = ms; }
 
-void out_post_statement(Output *o) {
-  if (o->default_delay > 0)
-    out_sleep_ms(o, o->default_delay);
-}
+/* The in-script twin of -d: ms is capped by the evaluator, so ms * 1e6 stays in
+   range (05 §8). Zero disables the per-event tick, exactly like -d 0. */
+void out_set_tick(Output *o, int64_t ms) { o->tick_ns = ms * 1000000; }

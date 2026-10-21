@@ -104,6 +104,37 @@ if [ "${QK_SKIP_TIMING:-0}" != 1 ]; then
     ms=$(( (t1 - t0) / 1000000 ))
     if [ "$ms" -le 5060 ] && [ "$ms" -ge 4990 ]; then ok; else bad "timing drift (${ms}ms, want 4990-5060)"; fi
 
+    # delay paces only output actions, not logic. With delay 200, a 50-iteration
+    # loop of pure assignments plus one type must finish fast: the type is the
+    # first action so it owes no gap, and nothing else pauses. The old
+    # after-every-statement bug made this 50+ pauses, i.e. 10+ seconds.
+    printf 'delay 200\ni = 0\nwhile i < 50 do\n  i = i + 1\ndone\ntype done\n' > "$TMP/dn.qk"
+    t0=$(date +%s%N); "$TQ" -d 0 -o /dev/null "$TMP/dn.qk"; t1=$(date +%s%N)
+    ms=$(( (t1 - t0) / 1000000 ))
+    if [ "$ms" -le 150 ]; then ok; else bad "timing delay-on-logic (${ms}ms, want <=150)"; fi
+
+    # delay 200 between three typed lines is two gaps (before the 2nd and 3rd,
+    # none before the 1st or after the 3rd) = 400 ms.
+    printf 'delay 200\ntypeln a\ntypeln b\ntypeln c\n' > "$TMP/dg.qk"
+    t0=$(date +%s%N); "$TQ" -d 0 -o /dev/null "$TMP/dg.qk"; t1=$(date +%s%N)
+    ms=$(( (t1 - t0) / 1000000 ))
+    if [ "$ms" -ge 380 ] && [ "$ms" -le 520 ]; then ok; else bad "timing delay-gap (${ms}ms, want 380-520)"; fi
+
+    # An explicit sleep adds to the default delay, it does not replace it:
+    # type a (first, no gap), sleep 100, then the 200 gap before type b = 300 ms.
+    printf 'delay 200\ntype a\nsleep 100\ntype b\n' > "$TMP/da.qk"
+    t0=$(date +%s%N); "$TQ" -d 0 -o /dev/null "$TMP/da.qk"; t1=$(date +%s%N)
+    ms=$(( (t1 - t0) / 1000000 ))
+    if [ "$ms" -ge 280 ] && [ "$ms" -le 400 ]; then ok; else bad "timing delay-additive (${ms}ms, want 280-400)"; fi
+
+    # keydelay is the per-key tick from inside the script (an in-script -d). At
+    # -d 0, typing 11 characters (10 + newline) at keydelay 40 is 10 gaps (the
+    # first key is immediate) = 400 ms.
+    printf 'keydelay 40\ntypeln aaaaaaaaaa\n' > "$TMP/kd.qk"
+    t0=$(date +%s%N); "$TQ" -d 0 -o /dev/null "$TMP/kd.qk"; t1=$(date +%s%N)
+    ms=$(( (t1 - t0) / 1000000 ))
+    if [ "$ms" -ge 380 ] && [ "$ms" -le 520 ]; then ok; else bad "timing keydelay (${ms}ms, want 380-520)"; fi
+
     # Byte-mutation fuzz: a mutated script must exit 0, 1 or 2, never crash (>=128).
     crash=0
     for qk in cases/*.qk; do

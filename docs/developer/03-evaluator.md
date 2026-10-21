@@ -94,15 +94,22 @@ distinct types with no shared node, and passing the two ints is simpler and UB-f
 
 Two cross-statement behaviours live here rather than in the output module:
 
-- **Default delay.** After `exec_stmt` returns `ST_OK`, `exec_block` calls
-  `out_post_statement(I->out)`, which pauses `default_delay` ms (0 = no pause). `out_post`
-  runs for every statement kind, so `delay 100` paces a whole script without a `sleep` on each
-  line. The `delay` statement itself only stores the value (05 §6).
+- **Default delay.** The `default_delay` is a gap inserted *between* output actions only. At the
+  top of `exec_stmt`, for the action kinds (`S_TYPE`, `S_TYPE_FILE`, `S_CHORD`, `S_HOLD`,
+  `S_RELEASE`), the evaluator calls `out_action_gap(I->out)` once, before dispatching the statement;
+  that pauses `default_delay` ms (0 = no pause) before every action but the first. The call lives at
+  the statement boundary on purpose: a `type` emits several segments through repeated `out_type`
+  calls, but is still one action, so one gap. This means `delay 100` paces the keystrokes a script
+  sends without pausing on assignments, `if`/`while`/`for`, or a bare call, and without a leading or
+  trailing pause. An explicit `sleep` is separate and adds on top of the gap; it does not replace
+  it. The `delay` statement itself only stores the value (05 §6). This is deliberate: a prior design
+  paused after every statement, which wasted real time on pure arithmetic and control flow.
 - **`repeat N`.** `exec_stmt` records a pointer to the last **action** statement it ran
-  (`S_TYPE`, `S_CHORD`, `S_HOLD`, `S_RELEASE`) in `I->last_action`, and clears it on any other
-  statement. `repeat N` re-runs `I->last_action` N times; a null `last_action` is the runtime
-  error "repeat with no preceding action". `repeat` does not become the new `last_action`, so
-  two `repeat`s in a row both refer to the original action.
+  (`S_TYPE`, `S_TYPE_FILE`, `S_CHORD`, `S_HOLD`, `S_RELEASE`) in `I->last_action`, and clears it on
+  any other statement. `repeat N` re-runs `I->last_action` N times; a null `last_action` is the
+  runtime error "repeat with no preceding action". `repeat` does not become the new `last_action`,
+  so two `repeat`s in a row both refer to the original action. Each re-run is an action, so the
+  default gap falls between the re-runs through `out_action_gap`.
 
 | Stmt | Behaviour |
 |---|---|
@@ -118,6 +125,7 @@ Two cross-statement behaviours live here rather than in the output module:
 | `S_HOLD` | `out_hold(...)`: add the chord's keys to the persistent held set |
 | `S_RELEASE` | `out_release(..., c.all)`: remove them (or clear all); releasing a key not held is an error |
 | `S_DELAY` | eval → int ≥ 0 else error → `out_set_default_delay(I->out, ms)` |
+| `S_KEYDELAY` | eval → int ≥ 0 else error → `out_set_tick(I->out, ms)` (the per-key tick, the in-script `-d`) |
 | `S_REPEAT` | eval → int ≥ 0 else error → re-run `I->last_action` that many times (see §4.1); no preceding action → error |
 
 ## 5. Function calls

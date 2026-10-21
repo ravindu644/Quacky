@@ -959,6 +959,8 @@ static Stmt *parse_statement(Parser *p) {
     return parse_expr_stmt(p, S_SLEEP);
   case T_DELAY:
     return parse_expr_stmt(p, S_DELAY);
+  case T_KEYDELAY:
+    return parse_expr_stmt(p, S_KEYDELAY);
   case T_REPEAT:
     return parse_expr_stmt(p, S_REPEAT);
   case T_HOLD:

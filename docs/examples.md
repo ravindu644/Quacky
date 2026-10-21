@@ -42,10 +42,10 @@ typeln You have ${items * 2} messages.
 
 ## 4. Pacing the output
 
-`delay` sets a pause after every step, so the typing looks steady instead of instant.
+`delay` sets a pause between each typed step, so the typing looks steady instead of instant.
 
 ```
-delay 40               # 40 ms after each step from here on
+delay 40               # 40 ms between each step from here on
 typeln one
 typeln two
 typeln three

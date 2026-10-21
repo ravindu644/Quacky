@@ -12,7 +12,7 @@ The semantics are identical in both backends; only the bytes differ.
 
 | Backend | Selected by | Writes |
 |---|---|---|
-| **transcript** | default, or `-o FILE` | human-readable text: `type` output verbatim, every key action as a tag |
+| **transcript** | default, or `-o FILE` | human-readable text: `type` output verbatim, every key action as a tag, every inserted pause as a `[sleep Nms]` / `[delay Nms]` marker |
 | **HID** | `--hid /dev/hidgN` | 8-byte USB boot-keyboard reports |
 
 A third mode, `--check`, runs the lexer and parser only, prints the first error or nothing,
@@ -27,7 +27,8 @@ typedef struct {
     OutMode         mode;
     struct timespec next;          // absolute deadline of the next key event, CLOCK_MONOTONIC
     long            tick_ns;       // default 5 * 1000 * 1000, from -d
-    int64_t         default_delay; // ms inserted after every statement, from `delay`; 0 = off
+    int64_t         default_delay; // ms gap between output actions (before each but the first), from `delay`; 0 = off
+    bool            seen_action;   // an output action has run, so the next one owes the gap
     bool            started;       // first emit initialises `next`
     uint8_t         held_mod;      // modifier bits currently held by `hold`
     uint8_t         held_key[6];   // non-modifier usages currently held; 0 = empty slot
@@ -213,13 +214,19 @@ Precision: Linux `clock_nanosleep` wakes within tens of microseconds on an idle 
 few ms under load; at a 20 ms tick that is invisible, and it is far faster than a USB host's
 1–8 ms polling interval anyway.
 
-## 6. `sleep ms` and `delay ms`
+## 6. `sleep ms`, `delay ms` and `keydelay ms`
 
 ```c
 void out_sleep_ms(Output *o, int64_t ms);               // one-shot pause (the `sleep` statement)
 void out_set_default_delay(Output *o, int64_t ms);      // the `delay` statement: store in o->default_delay
-void out_post_statement(Output *o);                     // 03 calls this after each statement; sleeps default_delay if > 0
+void out_set_tick(Output *o, int64_t ms);               // the `keydelay` statement: set o->tick_ns (the in-script -d)
+void out_action_gap(Output *o);                         // the evaluator calls this once per output statement (03 §4.1);
+                                                        // sleeps default_delay before every action but the first
 ```
+
+`keydelay` and `-d` write the same `tick_ns`: `-d` sets it once at `out_open`, `keydelay` changes it
+mid-run. `wait_tick` reads it per key event, so the new value takes effect from the next key; changing
+it never disturbs the running deadline (05 §5).
 
 `out_sleep_ms` shares the clock so the script's `sleep` and the key cadence agree:
 
@@ -232,9 +239,16 @@ void out_sleep_ms(Output *o, int64_t ms) {
 }
 ```
 
-`delay` and `sleep` are additive and predictable: `delay` fires once after each statement via
-`out_post_statement`, `sleep` fires where it is written. `repeat` (01 §6.5) is handled in the
-evaluator (03) by re-running the previous action node; it needs nothing here.
+In a dry run (transcript mode) each pause also prints a best-effort marker, `[sleep Nms]` from
+`out_sleep_ms` and `[delay Nms]` from `out_action_gap`, so a rehearsal shows its timing without a
+device. The pause still happens in real time, so wall-clock timing tests keep working; `--hid`
+mode prints nothing extra.
+
+`delay` and `sleep` are additive and predictable: `delay` inserts a gap between output actions via
+`out_action_gap` (never before the first or after the last, never on non-action statements), and
+`sleep` fires where it is written and stacks on top of that gap. `repeat` (01 §6.5) is handled in
+the evaluator (03) by re-running the previous action node, and each re-run takes the gap through
+`out_action_gap`, so it needs nothing extra here.
 
 ## 7. Signals and failure
 

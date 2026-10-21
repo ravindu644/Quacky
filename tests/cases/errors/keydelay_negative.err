@@ -1,0 +1,4 @@
+1
+cases/errors/keydelay_negative.qk:1:13: error: keydelay expects a non-negative int
+  keydelay (0 - 5)
+              ^
