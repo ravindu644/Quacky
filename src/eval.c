@@ -659,6 +659,22 @@ static Status exec_stmt(Interp *I, Stmt *s) {
     out_set_tick(I->out, ms);
     break;
   }
+  case S_FASTMODE: {
+    int64_t on;
+    st = eval_count(I, s->expr, "fastmode", &on);
+    if (st != ST_OK)
+      return st;
+    out_set_fast(I->out, on != 0);
+    break;
+  }
+  case S_ULTRAMODE: {
+    int64_t on;
+    st = eval_count(I, s->expr, "ultramode", &on);
+    if (st != ST_OK)
+      return st;
+    out_set_ultra(I->out, on != 0);
+    break;
+  }
   case S_REPEAT: {
     int64_t n;
     st = eval_count(I, s->expr, "repeat", &n);

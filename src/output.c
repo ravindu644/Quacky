@@ -477,3 +477,8 @@ void out_set_default_delay(Output *o, int64_t ms) { o->default_delay = ms; }
 /* The in-script twin of -d: ms is capped by the evaluator, so ms * 1e6 stays in
    range (05 §8). Zero disables the per-event tick, exactly like -d 0. */
 void out_set_tick(Output *o, int64_t ms) { o->tick_ns = ms * 1000000; }
+
+/* The in-script twins of --fast / --ultra. Only the HID backend reads these;
+   ultra still wins over fast in out_type. */
+void out_set_fast(Output *o, bool on) { o->fast = on; }
+void out_set_ultra(Output *o, bool on) { o->ultra = on; }

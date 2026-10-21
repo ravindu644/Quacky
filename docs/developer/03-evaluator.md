@@ -126,6 +126,8 @@ Two cross-statement behaviours live here rather than in the output module:
 | `S_RELEASE` | `out_release(..., c.all)`: remove them (or clear all); releasing a key not held is an error |
 | `S_DELAY` | eval → int ≥ 0 else error → `out_set_default_delay(I->out, ms)` |
 | `S_KEYDELAY` | eval → int ≥ 0 else error → `out_set_tick(I->out, ms)` (the per-key tick, the in-script `-d`) |
+| `S_FASTMODE` | eval → int ≥ 0 else error → `out_set_fast(I->out, n != 0)` (in-script `--fast`, HID only) |
+| `S_ULTRAMODE` | eval → int ≥ 0 else error → `out_set_ultra(I->out, n != 0)` (in-script `--ultra`, HID only; wins over fast) |
 | `S_REPEAT` | eval → int ≥ 0 else error → re-run `I->last_action` that many times (see §4.1); no preceding action → error |
 
 ## 5. Function calls

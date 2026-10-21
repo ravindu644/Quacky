@@ -76,6 +76,8 @@ static TokKind keyword_kind(const char *s, int len) {
       {"release", T_RELEASE},
       {"delay", T_DELAY},
       {"keydelay", T_KEYDELAY},
+      {"fastmode", T_FASTMODE},
+      {"ultramode", T_ULTRAMODE},
       {"repeat", T_REPEAT},
   };
   for (size_t i = 0; i < sizeof kws / sizeof kws[0]; i++) {
@@ -419,6 +421,10 @@ const char *tok_kind_name(TokKind k) {
     return "T_DELAY";
   case T_KEYDELAY:
     return "T_KEYDELAY";
+  case T_FASTMODE:
+    return "T_FASTMODE";
+  case T_ULTRAMODE:
+    return "T_ULTRAMODE";
   case T_REPEAT:
     return "T_REPEAT";
   case T_LPAREN:

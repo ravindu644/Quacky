@@ -98,6 +98,8 @@ typedef enum {
   S_RELEASE,
   S_DELAY,
   S_KEYDELAY,
+  S_FASTMODE,
+  S_ULTRAMODE,
   S_REPEAT
 } StmtKind;
 

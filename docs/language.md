@@ -256,6 +256,11 @@ Releasing a key that is not held is an error, so a script cannot accidentally le
   chord), the in-script twin of the `-d` command-line flag. It is a smaller-grained knob than
   `delay`: `delay` pauses between whole actions, `keydelay` slows the typing within them. It stays in
   effect until you change it; `keydelay 0` is full speed.
+- **`fastmode N`** and **`ultramode N`** (`N` is `1` for on, `0` for off) switch the HID rollover
+  strategy from inside the script, the in-script twins of the `--fast` and `--ultra` flags. They
+  change only real `--hid` output (a dry run ignores them), and `ultramode` wins over `fastmode` when
+  both are on. Handy to run most of a script at full `ultramode` speed but drop a key-sensitive
+  passage back to normal rollover.
 - **`repeat N`** re-runs the previous keystroke, `type`, `typeln`, chord, `hold` or `release` N more
   times.
 

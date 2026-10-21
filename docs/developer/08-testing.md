@@ -45,6 +45,10 @@ Required coverage (one case each, mapped to the spec):
 `quacky --check case.qk` and must print the same diagnostic and exit 2 while producing **no**
 output to `$tmp`, and each good `cases/*` must `--check` clean with exit 0.
 
+Mode equivalence: the runner also checks that the `fastmode 1` / `ultramode 1` statements produce
+HID bytes identical to the `--fast` / `--ultra` flags, and that `fastmode 0` matches no flag, by
+running a statement script and a flag run over `--hid` to temp files and comparing with `cmp`.
+
 ## 2. Timing test (the feature)
 
 ```sh

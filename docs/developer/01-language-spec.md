@@ -29,7 +29,8 @@ and small interpreters work.
 
 ```
 if then elif else fi while do done for in func end return break continue
-const true false sleep type typeln type_file typeln_file hold release delay keydelay repeat
+const true false sleep type typeln type_file typeln_file hold release delay keydelay
+fastmode ultramode repeat
 ```
 
 ### Key names (contextual, not reserved)
@@ -63,6 +64,8 @@ statement   = assignment
             | release_stmt
             | delay_stmt
             | keydelay_stmt
+            | fastmode_stmt
+            | ultramode_stmt
             | repeat_stmt
             | call_stmt ;
 
@@ -74,6 +77,8 @@ hold_stmt   = "hold" key { "+" key } ;
 release_stmt= "release" ( "all" | key { "+" key } ) ;
 delay_stmt  = "delay" expr ;                                         (* persistent default pause, ms *)
 keydelay_stmt = "keydelay" expr ;                                    (* persistent per-key tick, ms (in-script -d) *)
+fastmode_stmt = "fastmode" expr ;                                    (* rollover: 0 off, nonzero on (in-script --fast) *)
+ultramode_stmt = "ultramode" expr ;                                  (* frame packing: 0 off, nonzero on (in-script --ultra) *)
 repeat_stmt = "repeat" expr ;                                        (* re-run the previous action expr times *)
 key         = KEY_NAME | LETTER | DIGIT ;                            (* KEY_NAME from §6.1 *)
 
@@ -329,6 +334,11 @@ repeat 5                 # press down five more times (six presses total)
   `tick_ns`). This is a finer grain than `delay`: `delay` spaces whole actions, `keydelay` spaces
   the keys within them. Int ≥ 0 (ms), negative is a runtime error; default `keydelay 0` is full
   speed. A later `keydelay` or `-d` is just the value in effect from that point.
+- `fastmode N` / `ultramode N` set the HID rollover strategy from inside the script, the in-script
+  equivalents of `--fast` / `--ultra` (they write the same `o->fast` / `o->ultra`). `N` is an int:
+  `0` turns the mode off, nonzero on; a negative value is the same runtime error as `delay`. They
+  affect only the HID backend (a transcript dry run ignores them), and `ultra` keeps precedence over
+  `fast` in `out_type`. Default is off, like the flags.
 - `repeat N` re-runs the immediately preceding keystroke, `type`, or chord statement N more
   times. `repeat` with no preceding action, or after a non-keystroke statement, is a runtime
   error.

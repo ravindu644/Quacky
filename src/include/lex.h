@@ -42,6 +42,8 @@ typedef enum {
   T_RELEASE,
   T_DELAY,
   T_KEYDELAY,
+  T_FASTMODE,
+  T_ULTRAMODE,
   T_REPEAT,
   /* punctuation and operators */
   T_LPAREN,

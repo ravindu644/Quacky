@@ -109,6 +109,10 @@ static uint8_t base_mod(const Output *o) { return o->held_mod; }                
   multi-key report would type the frame scrambled, so this is a benchmark mode, not the safe default.
   Correctness is pinned by the `rollover.ultra.hid` golden (08), which captures the shift-break,
   the roll, and the repeat-break in one line.
+- **In-script toggles.** `fastmode N` and `ultramode N` set `o->fast` / `o->ultra` mid-run through
+  `out_set_fast` / `out_set_ultra` (03), the script-level twins of `--fast` / `--ultra`. They write
+  the same bits the flags do, so the precedence above is unchanged, and they matter only on the HID
+  backend. 08 asserts a statement run produces byte-identical HID to the matching flag.
 
 ## 3. What each call emits
 

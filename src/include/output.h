@@ -69,6 +69,10 @@ void out_set_default_delay(Output *o, int64_t ms);
 /* The `keydelay` statement: the per-key-event tick, the in-script twin of -d.
    ms is validated >= 0 and capped by the evaluator before it arrives here. */
 void out_set_tick(Output *o, int64_t ms);
+/* The `fastmode` / `ultramode` statements: the in-script twins of --fast /
+   --ultra. HID-only; ultra still wins over fast in out_type. */
+void out_set_fast(Output *o, bool on);
+void out_set_ultra(Output *o, bool on);
 /* The evaluator calls this once at the start of each output statement; it
    pauses default_delay before every action but the first (the gap between
    keystrokes), so it never pads the start or end of a script. */

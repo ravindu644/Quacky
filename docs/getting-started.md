@@ -133,6 +133,8 @@ Pace between actions, not only between keys:
 - Use the `keydelay` statement to change that individual-key pacing from inside the script: it is
   the in-script `-d`, so you can type one passage slowly and the rest at full speed without touching
   the command line.
+- Likewise `fastmode 1` / `ultramode 1` (and `0` to turn them off) set the HID rollover mode from the
+  script, the in-script `--fast` / `--ultra`. Only real `--hid` runs are affected.
 
 ## Exit codes
 

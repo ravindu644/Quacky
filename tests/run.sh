@@ -76,6 +76,20 @@ check_error() { # $1 = .qk, $2 = extra args
 for qk in cases/errors/*.qk;     do check_error "$qk" "-o $TMP/o"; done
 for qk in cases/errors_hid/*.qk; do dev=$TMP/hdev; : > "$dev"; check_error "$qk" "--hid $dev"; done
 
+# The fastmode/ultramode statements must produce exactly the HID bytes of the
+# --fast/--ultra flags (and fastmode 0 the bytes of neither). Compare the stream
+# from a script that sets the mode against one that types the same with the flag.
+printf 'typeln abcabc\n' > "$TMP/mp.qk"
+mode_eq() { # $1 label, $2 .qk with the statement, $3 flags for the plain script
+    a=$TMP/ma; b=$TMP/mb; : > "$a"; : > "$b"
+    # shellcheck disable=SC2086
+    if "$QUACKY" -d 0 --hid "$a" "$2" && "$QUACKY" -d 0 $3 --hid "$b" "$TMP/mp.qk" &&
+       cmp -s "$a" "$b"; then ok; else bad "$1 (statement != flag)"; fi
+}
+printf 'ultramode 1\ntypeln abcabc\n' > "$TMP/mu.qk"; mode_eq "ultramode==--ultra" "$TMP/mu.qk" "--ultra"
+printf 'fastmode 1\ntypeln abcabc\n'  > "$TMP/mf.qk"; mode_eq "fastmode==--fast"   "$TMP/mf.qk" "--fast"
+printf 'fastmode 0\ntypeln abcabc\n'  > "$TMP/mo.qk"; mode_eq "fastmode0==plain"   "$TMP/mo.qk" ""
+
 # Timing and fuzzing: wall-clock sensitive, so local runs only. Measure against
 # an -O2 build, not the ASan one whose start-up cost would blur the tight bounds;
 # the x86_64 release binary runs on this host when `make all-build` has produced it.
