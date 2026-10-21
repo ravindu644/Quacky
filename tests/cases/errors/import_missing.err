@@ -1,0 +1,4 @@
+2
+cases/errors/import_missing.qk:1:8: error: cannot open "cases/errors/nope.qk": No such file or directory
+  import nope.qk
+         ^

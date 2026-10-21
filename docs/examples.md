@@ -160,3 +160,30 @@ typeln_file "lorem.txt"    # type it and press Enter at the end
 The path is relative to the script, and `quacky --check script.qk` resolves and validates the file
 (it must be real UTF-8 text, not a binary blob) before anything is typed. See
 [language.md](language.md#typing-a-file) for the details.
+
+## 11. Splitting a script into modules
+
+Keep shared constants and helpers in their own file and `import` it. Relative paths resolve next to
+the file that writes the import, and a file is imported only once.
+
+```
+# lib/pace.qk, a reusable module
+const TYPING = 15
+func slow_line text
+  keydelay 90
+  typeln $text
+  keydelay TYPING
+end
+```
+
+```
+# demo.qk, the script you run
+import lib/pace.qk          # TYPING is now set; slow_line() is now callable
+keydelay TYPING
+slow_line("typed deliberately")
+typeln and the rest at normal speed
+```
+
+Rehearse `demo.qk` with a dry run as usual; a missing module or a syntax error in one is caught by
+`quacky --check demo.qk` before anything is typed. See
+[language.md](language.md#modules-import) for the rules.

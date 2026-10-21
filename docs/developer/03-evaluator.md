@@ -165,6 +165,11 @@ main:
     flush/close, exit code per 06
 ```
 
+`import` (01 §6.7) is resolved entirely inside `parse`: the imported file's functions and top-level
+statements are spliced into this one `Program` at the import point, so the evaluator sees a single
+merged program and `import` leaves no runtime node. Imported statements therefore run in place, and
+imported functions are registered and hoisted exactly like local ones.
+
 ## 7. Recursion depth and the C stack
 
 Each script call costs roughly 3–5 nested C frames (`exec_block → exec_stmt → eval_expr →

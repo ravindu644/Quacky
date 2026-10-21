@@ -1,0 +1,2 @@
+# a shared constant, pulled in by util.qk
+const GREETING = "hi"

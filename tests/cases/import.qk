@@ -1,0 +1,7 @@
+# Pull in a module and, through another module, the same shared file again.
+# import-once means util.qk is spliced just once (a second splice would be a
+# duplicate-function error), and relative imports resolve next to each file.
+import imports/util.qk
+import imports/via.qk
+typeln speed=$SPEED greeting=$GREETING
+banner()

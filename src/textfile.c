@@ -69,8 +69,10 @@ static bool valid_utf8_text(const unsigned char *s, size_t n) {
 
 /* Join data_path to the directory of script_path (dirname computed by hand to
    avoid the mutate-in-place and static-storage quirks of libgen dirname). An
-   absolute data_path is copied through unchanged. Returns a malloc'd string. */
-static char *resolve_path(const char *script_path, const char *data_path) {
+   absolute data_path is copied through unchanged. Returns a malloc'd string.
+   Exposed for `import`, which resolves a path relative to the importing file
+   the same way (textfile.h). */
+char *tf_resolve(const char *script_path, const char *data_path) {
   if (data_path[0] == '/') {
     size_t n = strlen(data_path);
     char *r = malloc(n + 1);
@@ -109,7 +111,7 @@ bool tf_load(const char *script_path, const char *data_path, size_t data_len,
   memcpy(cpath, data_path, data_len);
   cpath[data_len] = '\0';
 
-  char *path = resolve_path(script_path, cpath);
+  char *path = tf_resolve(script_path, cpath);
   free(cpath);
   if (!path) {
     snprintf(errbuf, errcap, "out of memory resolving the path");

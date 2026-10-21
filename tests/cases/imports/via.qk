@@ -1,0 +1,2 @@
+# reaches util.qk by a different spelling, to exercise import-once dedup
+import ./util.qk

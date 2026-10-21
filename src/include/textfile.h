@@ -19,4 +19,9 @@
 bool tf_load(const char *script_path, const char *data_path, size_t data_len,
              char **out, size_t *outlen, char *errbuf, size_t errcap);
 
+/* Resolve data_path against the directory of script_path (an absolute path is
+   returned unchanged), as a malloc'd string the caller frees. `import` uses it
+   to resolve a module path relative to the file that imports it. */
+char *tf_resolve(const char *script_path, const char *data_path);
+
 #endif

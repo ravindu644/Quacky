@@ -1,0 +1,6 @@
+# a module: a const, a nested import (relative to THIS file), and a function
+const SPEED = 7
+import ./consts.qk
+func banner
+  typeln [banner]
+end

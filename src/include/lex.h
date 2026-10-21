@@ -38,6 +38,7 @@ typedef enum {
   T_TYPELN,
   T_TYPE_FILE,
   T_TYPELN_FILE,
+  T_IMPORT,
   T_HOLD,
   T_RELEASE,
   T_DELAY,

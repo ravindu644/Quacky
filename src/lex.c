@@ -72,6 +72,7 @@ static TokKind keyword_kind(const char *s, int len) {
       {"typeln", T_TYPELN},
       {"type_file", T_TYPE_FILE},
       {"typeln_file", T_TYPELN_FILE},
+      {"import", T_IMPORT},
       {"hold", T_HOLD},
       {"release", T_RELEASE},
       {"delay", T_DELAY},
@@ -264,8 +265,8 @@ Token lex_next(Lexer *lx) {
       advance(lx);
     Token t =
         mk(lx, keyword_kind(start, (int)(lx->p - start)), start, line, col);
-    if (t.kind == T_TYPE || t.kind == T_TYPELN)
-      lx->after_type = true;
+    if (t.kind == T_TYPE || t.kind == T_TYPELN || t.kind == T_IMPORT)
+      lx->after_type = true; /* import takes an unquoted rest-of-line path */
     return t;
   }
 
@@ -413,6 +414,8 @@ const char *tok_kind_name(TokKind k) {
     return "T_TYPE_FILE";
   case T_TYPELN_FILE:
     return "T_TYPELN_FILE";
+  case T_IMPORT:
+    return "T_IMPORT";
   case T_HOLD:
     return "T_HOLD";
   case T_RELEASE:

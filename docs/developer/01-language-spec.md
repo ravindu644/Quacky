@@ -29,7 +29,7 @@ and small interpreters work.
 
 ```
 if then elif else fi while do done for in func end return break continue
-const true false sleep type typeln type_file typeln_file hold release delay keydelay
+const true false sleep type typeln type_file typeln_file import hold release delay keydelay
 fastmode ultramode repeat
 ```
 
@@ -59,6 +59,7 @@ statement   = assignment
             | sleep_stmt
             | type_stmt
             | type_file_stmt
+            | import_stmt
             | chord_stmt
             | hold_stmt
             | release_stmt
@@ -72,6 +73,7 @@ statement   = assignment
 assignment  = IDENT "=" expr ;
 const_decl  = "const" IDENT "=" expr ;
 
+import_stmt = "import" RAW_LINE ;                                    (* unquoted path, top level only; see §6.6 *)
 chord_stmt  = key { "+" key } ;                                      (* see §6 *)
 hold_stmt   = "hold" key { "+" key } ;
 release_stmt= "release" ( "all" | key { "+" key } ) ;
@@ -350,6 +352,18 @@ press report `[modifiers, 0, k1..k6]` followed by a release report (the held set
 zeroes). Timing, the report layout, the device node and the dry-run transcript are specified in
 05; device composition (which `/dev/hidgX` exists, the USB identity) is owned by USB Arsenal,
 not by Quacky.
+
+### 6.7 Modules: `import`
+
+`import PATH` splices another script into this one at parse time (an include/source model): the
+target's functions join the program (hoisted, visible everywhere) and its top-level statements run
+in place at the `import`, so a module's `const`/variable assignments take effect from that point.
+`PATH` is an unquoted rest-of-line token (same raw-line lexing as `type`), resolved relative to the
+**importing file's** directory, or used as-is if absolute. A file already imported, keyed by its
+lexically-normalized path, is pulled in only once; this makes diamonds idempotent and stops cycles.
+Because import is resolved entirely during parsing, a missing/binary/non-UTF-8 module or a syntax
+error inside one is reported before any output (and under `--check`), preserving the no-output
+guarantee of §2. `import` is a top-level statement; inside a function or block it is an error.
 
 ## 7. Sample programs
 

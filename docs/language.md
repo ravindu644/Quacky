@@ -26,6 +26,7 @@ the full list of key names you can press.
 - [Conditions](#conditions-if-elif-else)
 - [Loops](#loops-while-and-for)
 - [Functions](#functions)
+- [Modules: import](#modules-import)
 - [Things that will trip you up](#things-that-will-trip-you-up)
 
 ## Comments
@@ -358,6 +359,50 @@ func fib n
 end
 typeln fib(10) = ${fib(10)}
 ```
+
+## Modules: import
+
+`import` pulls another script into this one, so you can keep shared helpers and constants in their
+own file. The path is written plainly, with no quotes, as the rest of the line:
+
+```
+import modules/util.qk
+import ./tools/math.qk
+```
+
+It works like an include: the imported file's functions become available here (functions are visible
+everywhere, so order does not matter), and its top-level code runs at the point of the `import`, so
+any `const` or variable it sets is in effect from there on. Keep modules to definitions and
+constants; a `type` in a module would be typed at the moment it is imported.
+
+```
+# consts.qk
+const SPEED = 300
+func banner
+  typeln ========================
+end
+```
+
+```
+# main.qk
+import ./consts.qk          # SPEED is now set, banner() is now callable
+keydelay SPEED
+banner()
+```
+
+A few rules:
+
+- **Relative paths are relative to the file that writes the `import`**, not to wherever you run
+  Quacky from, so a module can `import ./sibling.qk` and move as a unit. An absolute path is used
+  as-is.
+- **Each file is imported once.** Importing the same file again (directly, or through a diamond where
+  two modules both import a third) pulls it in a single time, which also means an import cycle just
+  stops rather than looping.
+- **`import` is top level only**, and like `type` it reads the rest of the line verbatim: a trailing
+  `# comment`, a `;`, or anything else after the path becomes part of the path. One `import` per
+  line, and keep comments on their own line.
+- Everything is checked before anything is typed: a missing or non-text module, or a syntax error in
+  one, is reported by `quacky --check` and types nothing.
 
 ## Things that will trip you up
 

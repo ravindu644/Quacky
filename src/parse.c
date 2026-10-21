@@ -125,8 +125,11 @@ typedef struct {
   int expr_depth; /* bounds expression nesting (03 section 7) */
   Func **funcs;   /* scratch, copied to the arena at the end */
   int nfuncs, funcs_cap;
-  int for_counter; /* makes hidden loop-end names unique */
-  bool check;      /* --check mode: warn on things we cannot check */
+  char **imported; /* canonical paths already imported, for import-once */
+  int nimported, imported_cap;
+  int import_depth; /* bounds nested-import recursion */
+  int for_counter;  /* makes hidden loop-end names unique */
+  bool check;       /* --check mode: warn on things we cannot check */
 } Parser;
 
 static void *xrealloc(void *ptr, size_t n) {
@@ -288,6 +291,8 @@ static Stmt *parse_statement(Parser *p);
 static void parse_statement_into(Parser *p, Stmt ***stmts, int *n, int *cap);
 static void desugar_for_into(Parser *p, Stmt ***stmts, int *n, int *cap);
 static Block *parse_block(Parser *p, const TokKind *closers, int nc);
+static void parse_toplevel(Parser *p, Stmt ***stmts, int *n, int *cap);
+static void parse_import(Parser *p, Stmt ***stmts, int *n, int *cap);
 static Chord parse_chord_body(Parser *p, Token first);
 static void parse_raw_line(Parser *p, Token raw, Stmt *s, bool add_newline);
 static QStr *str_literal_value(Parser *p, Token t);
@@ -943,6 +948,8 @@ static Stmt *parse_statement(Parser *p) {
     return parse_while(p);
   case T_FUNC:
     perr(p, t, "functions must be top level");
+  case T_IMPORT:
+    perr(p, t, "import must be at the top level");
   case T_RETURN:
     return parse_return(p);
   case T_BREAK:
@@ -1111,6 +1118,183 @@ static void parse_func(Parser *p) {
   push_func(p, f);
 }
 
+/* Collapse '.', '..' and duplicate '/' in a path lexically (no filesystem
+   access, so it also works on a not-yet-existing path), so the same module
+   reached by different relative spellings keys the same under import-once.
+   Symlink aliasing is not resolved, which is fine for dedup. Returns malloc'd.
+ */
+static char *normalize_path(const char *path) {
+  size_t n = strlen(path);
+  int absolute = n > 0 && path[0] == '/';
+  const char **cs = malloc((n + 1) * sizeof *cs);
+  size_t *cl = malloc((n + 1) * sizeof *cl);
+  if (!cs || !cl) {
+    fputs("quacky: out of memory\n", stderr);
+    exit(1);
+  }
+  size_t nc = 0, i = 0;
+  while (i < n) {
+    while (i < n && path[i] == '/')
+      i++;
+    size_t s = i;
+    while (i < n && path[i] != '/')
+      i++;
+    size_t len = i - s;
+    if (len == 0 || (len == 1 && path[s] == '.'))
+      continue; /* "" or "." */
+    if (len == 2 && path[s] == '.' && path[s + 1] == '.') {
+      int top_dotdot = nc > 0 && cl[nc - 1] == 2 && cs[nc - 1][0] == '.' &&
+                       cs[nc - 1][1] == '.';
+      if (nc > 0 && !top_dotdot) {
+        nc--;
+        continue;
+      } /* pop a real parent */
+      if (absolute)
+        continue; /* "/.." stays at root */
+    }
+    cs[nc] = path + s;
+    cl[nc] = len;
+    nc++;
+  }
+  size_t total = absolute ? 1 : 0;
+  for (size_t k = 0; k < nc; k++)
+    total += cl[k] + (k ? 1 : 0);
+  char *out = malloc((total ? total : 1) + 1);
+  if (!out) {
+    fputs("quacky: out of memory\n", stderr);
+    exit(1);
+  }
+  size_t o = 0;
+  if (absolute)
+    out[o++] = '/';
+  for (size_t k = 0; k < nc; k++) {
+    if (k)
+      out[o++] = '/';
+    memcpy(out + o, cs[k], cl[k]);
+    o += cl[k];
+  }
+  if (o == 0)
+    out[o++] = '.'; /* empty relative path -> "." */
+  out[o] = '\0';
+  free(cs);
+  free(cl);
+  return out;
+}
+
+#define IMPORT_MAX                                                             \
+  64 /* bounds nested-import recursion; import-once stops cycles */
+
+/* `import <path>`: at parse time, read another .qk file and splice its
+   functions and top-level statements into the program right here (an
+   include/source). The path is an unquoted rest-of-line, resolved relative to
+   the importing file; a file already imported (by canonical path) is pulled in
+   only once. */
+static void parse_import(Parser *p, Stmt ***stmts, int *n, int *cap) {
+  Token kw = p->cur;
+  p_advance(p); /* consume 'import'; the lexer makes the rest of the line raw */
+  Token pathtok = p->cur;
+  const char *s = pathtok.start;
+  int len = pathtok.len;
+  while (len > 0 && (*s == ' ' || *s == '\t')) {
+    s++;
+    len--;
+  }
+  while (len > 0 && (s[len - 1] == ' ' || s[len - 1] == '\t'))
+    len--;
+  if (len <= 0)
+    perr(p, kw, "import needs a path");
+  p_advance(p); /* consume the path; p->cur is now the line's terminator */
+
+  char *rel = malloc((size_t)len + 1);
+  if (!rel) {
+    fputs("quacky: out of memory\n", stderr);
+    exit(1);
+  }
+  memcpy(rel, s, (size_t)len);
+  rel[len] = '\0';
+
+  /* Dedup key for import-once: resolve against the importing file, then
+     collapse
+     ./ and ../ lexically with normalize_path so the same module reached by
+     different spellings keys the same. Not realpath: musl does not expose it
+     under our feature macros, and a lexical key also works before the file
+     exists. */
+  char *resolved = tf_resolve(p->filename, rel);
+  if (!resolved) {
+    fputs("quacky: out of memory\n", stderr);
+    exit(1);
+  }
+  char *key = normalize_path(resolved); /* collapse ./ and ../ so the same */
+  free(resolved);                       /* module dedups under import-once */
+
+  for (int i = 0; i < p->nimported; i++)
+    if (strcmp(p->imported[i], key) == 0) {
+      free(key);
+      free(rel);
+      return; /* already imported */
+    }
+
+  char errbuf[256];
+  char *buf = NULL;
+  size_t blen = 0;
+  if (!tf_load(p->filename, rel, (size_t)len, &buf, &blen, errbuf,
+               sizeof errbuf)) {
+    free(key);
+    free(rel);
+    perr(p, pathtok, "%s", errbuf);
+  }
+  free(rel);
+  PUSH(&p->imported, &p->nimported, &p->imported_cap, key); /* takes over key */
+
+  /* The lexer needs NUL-terminated, mutable source that outlives eval (name
+     Strs point into it), so keep it in the arena. */
+  char *modsrc = arena_alloc(p->a, blen + 1);
+  memcpy(modsrc, buf, blen);
+  modsrc[blen] = '\0';
+  free(buf);
+
+  if (++p->import_depth > IMPORT_MAX)
+    perr(p, pathtok, "imports nested too deep (limit %d)", IMPORT_MAX);
+
+  /* Parse the module into the SAME funcs/stmts so its statements splice in
+     order at this point and cross-file duplicate functions are caught. Save and
+     restore the importing file's lexer and token state around it. */
+  Lexer save_lx = p->lx;
+  Token save_cur = p->cur, save_prev = p->prev;
+  const char *save_file = p->filename;
+  char *save_src = p->src;
+
+  p->filename = key;
+  p->src = modsrc;
+  lex_init(&p->lx, key, modsrc);
+  p->cur = lex_next(&p->lx);
+  parse_toplevel(p, stmts, n, cap);
+
+  p->lx = save_lx;
+  p->cur = save_cur;
+  p->prev = save_prev;
+  p->filename = save_file;
+  p->src = save_src;
+  p->import_depth--;
+}
+
+/* The top-level statement loop, shared by the entry file and every imported one
+   (import re-enters it on the same parser, splicing into the same vectors). */
+static void parse_toplevel(Parser *p, Stmt ***stmts, int *n, int *cap) {
+  skip_seps(p);
+  while (!p_check(p, T_EOF)) {
+    if (p_check(p, T_IMPORT))
+      parse_import(p, stmts, n, cap);
+    else if (p_check(p, T_FUNC))
+      parse_func(p);
+    else
+      parse_statement_into(p, stmts, n, cap);
+    expect_term(p, NULL,
+                0); /* top level: a separator or EOF ends a statement */
+    skip_seps(p);
+  }
+}
+
 Program *parse(Arena *a, const char *filename, char *src, bool check) {
   Parser p;
   memset(&p, 0, sizeof p);
@@ -1123,16 +1307,10 @@ Program *parse(Arena *a, const char *filename, char *src, bool check) {
 
   Stmt **stmts = NULL;
   int n = 0, cap = 0;
-  skip_seps(&p);
-  while (!p_check(&p, T_EOF)) {
-    if (p_check(&p, T_FUNC))
-      parse_func(&p);
-    else
-      parse_statement_into(&p, &stmts, &n, &cap);
-    expect_term(&p, NULL,
-                0); /* top level: a separator or EOF ends a statement */
-    skip_seps(&p);
-  }
+  /* Seed import-once with the entry file, so a module that imports it back is a
+     no-op instead of re-running the entry body. */
+  PUSH(&p.imported, &p.nimported, &p.imported_cap, normalize_path(filename));
+  parse_toplevel(&p, &stmts, &n, &cap);
 
   Block *top = arena_alloc(a, sizeof *top);
   top->stmts = arena_dup(&p, stmts, (size_t)n * sizeof *stmts);
@@ -1144,5 +1322,8 @@ Program *parse(Arena *a, const char *filename, char *src, bool check) {
   prog->funcs = arena_dup(&p, p.funcs, (size_t)p.nfuncs * sizeof *p.funcs);
   prog->nfuncs = p.nfuncs;
   free(p.funcs);
+  for (int i = 0; i < p.nimported; i++)
+    free(p.imported[i]);
+  free(p.imported);
   return prog;
 }

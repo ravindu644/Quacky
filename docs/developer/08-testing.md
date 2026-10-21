@@ -37,9 +37,10 @@ Required coverage (one case each, mapped to the spec):
 | `funcs` | forward call (hoisting), recursion (`fib 20`), arity error, no-value error, global write from function, const write error |
 | `type_escapes` | `\n \t \\ \$ \xHH \0NNN \c`, `$var`, `${expr}`, lone `$`, `#` inside line, empty `type`, UTF-8 string with multi-byte characters |
 | `comments` | `#` line, `#[ ]#` block across lines, `#` inside string literal kept |
+| `import` | `import` of a module (functions + a `const`), a nested import relative to the importing file, and import-once dedup of a file reached by two spellings (a second splice would be a duplicate-function error). Modules live in `cases/imports/` so the `cases/*.qk` glob does not run them standalone |
 | `pacing` | a `delay` gap and an explicit `sleep` show as `[delay Nms]` / `[sleep Nms]` markers in the transcript, the gap falls between actions (not before the first), and the two stack additively |
 | `keys` | chords (`ctrl + c`, `ctrl + alt + delete`, lone `enter`), shifted chord target (`shift + a`), `hold`/`release` with the held set merged into later reports, `release all`, `delay` pacing, `repeat` of the previous action, `type` characters that need Shift. Checked in **both** backends: transcript tags in `keys.out`, exact bytes in `keys.hid` |
-| `errors/*` | one file per catalogue entry in 06 §5, plus syntax errors: `break` outside loop, unterminated string, unclosed `#[`, unbalanced `${`, `unknown key`, `too many keys in a chord`; and keystroke runtime errors: unmappable `type` char under `--hid`, `release` of an unheld key, `repeat` with no action |
+| `errors/*` | one file per catalogue entry in 06 §5, plus syntax errors: `break` outside loop, unterminated string, unclosed `#[`, unbalanced `${`, `unknown key`, `too many keys in a chord`; and keystroke runtime errors: unmappable `type` char under `--hid`, `release` of an unheld key, `repeat` with no action, a missing `import` target |
 
 `--check` is covered for free: each `errors/*` syntax case is also run as
 `quacky --check case.qk` and must print the same diagnostic and exit 2 while producing **no**
