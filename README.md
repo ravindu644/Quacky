@@ -94,4 +94,5 @@ The USB gadget side, the `/dev/hidgN` node Quacky writes to, is provided by
 
 ## License
 
-See the repository's license file.
+[GNU General Public License v3.0](./LICENSE). Copyright (C) 2026
+[ravindu644](https://github.com/ravindu644).
