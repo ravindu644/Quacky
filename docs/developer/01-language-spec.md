@@ -8,8 +8,9 @@ together. The interpreter turns each into USB HID keyboard reports written to `/
 keyboard typing at supersonic speed. For safe dry-runs and the test suite it can instead write
 a human-readable transcript (see 05). Pacing is one key event per tick (default 5 ms).
 
-This is an educational, free and open-source tool for learning how HID keyboards, USB gadgets
-and small interpreters work.
+This is a free and open-source replacement for commercial keystroke injection tools, built for
+educational and experimental purposes only: a way to learn how HID keyboards, USB gadgets and small
+interpreters work.
 
 ## 1. Lexical structure
 

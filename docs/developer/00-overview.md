@@ -9,8 +9,12 @@ every 5 ms by default. For a safe dry-run and for the test suite it instead writ
 human-readable transcript. The interpreter is a single static C11 binary for x86_64, i686,
 aarch64, armhf and riscv64.
 
-It is an educational, free and open-source project: a learning-friendly, no-cost alternative
-to expensive commercial typing-automation hardware, and a small, readable interpreter to study.
+It is a free and open-source replacement for commercial keystroke injection hardware, built for
+educational and experimental purposes only. The Linux kernel has exposed USB HID gadget support
+through configfs since 2015 and an
+Android phone is already a full USB device, so the hardware is in your pocket; Quacky is the
+software for it, its own language and its own interpreter, portable across five architectures and
+small enough to read end to end.
 
 This folder is the design guide: how the interpreter in [`src/`](../../src/) is built, module by
 module. Read it alongside the code.
@@ -20,7 +24,7 @@ module. Read it alongside the code.
 - Portable to 32-bit: `int64_t` values, `size_t` lengths, 64-bit `time_t` via musl 1.2.5.
 - Precise cadence: absolute-deadline sleeps, no cumulative drift.
 - Small: 60–130 KB static binaries, zero dependencies beyond libc.
-- Readable: ~3 200 lines of C across seven files.
+- Readable: about 3,800 lines of C across eight files.
 - Safe to rehearse: a dry-run transcript and a `--check` parse step before anything types.
 
 ## Non-goals

@@ -15,8 +15,9 @@ combinations very fast. The gadget node comes from the companion **USB Arsenal**
 the USB side (configfs, the controller, the identity); Quacky only speaks keyboard, through two
 output backends: real HID reports, or a readable transcript for safe dry-runs and the test suite.
 
-This is an educational, free and open-source project: a learning-friendly, no-cost alternative to
-expensive commercial typing-automation hardware, and a small interpreter to study.
+This is a free and open-source replacement for commercial keystroke injection tools, built for
+educational and experimental purposes only: its own language and interpreter, portable across five
+architectures, small enough to read end to end.
 
 ## Build
 
@@ -53,9 +54,10 @@ prints help. Details are in
 | `src/value.c` | the `Value` union, refcounted strings, `to_string`, `int_op` |
 | `src/output.c` | the one place that touches the OS for output: fd, backends, clock, HID reports, held-key set |
 | `src/keys.c` | the single source of truth for key names and the US char to (modifier, usage) table |
+| `src/textfile.c` | the `type_file` loader: resolve the path, read the file, strict-UTF-8 validate |
 | `src/include/*.h` | the module headers, one per `src/` unit, on the build's `-Isrc/include` path |
 | `module/` | the KernelSU/Magisk module assets (`module.prop`, `customize.sh`, `uninstall.sh`) `make module` zips |
-| `docs/developer/` | the design guide, nine numbered docs |
+| `docs/developer/` | the design guide, ten numbered docs |
 | `docs/` | the end-user documentation (language, keys, examples, getting started) |
 | `tests/` | `cases/*.qk` with `.out` (transcript) and `.hid` (report bytes), plus `run.sh` |
 | `output/` | all build artifacts (gitignored) |
@@ -88,10 +90,12 @@ in the right place is the goal, not a smaller diff anywhere.
 
 ## Framing
 
-Describe the project as what it is: an educational, free and open-source interpreter that reads a
-script and writes HID keyboard reports to `/dev/hidg0`, typing text and key combinations for the
-host. The target computer is "the host" or "the target computer". Keep the wording factual and
-neutral in code, comments, docs and commits; let the engineering speak for itself.
+Describe the project as what it is: a free and open-source replacement for commercial keystroke
+injection tools, built for educational and experimental purposes only. It is an interpreter that
+reads a script and writes HID keyboard reports to `/dev/hidg0`,
+typing text and key combinations for the host. The target computer is "the host" or "the target
+computer". Keep the wording factual in code, comments, docs and commits; let the engineering carry
+it, and keep the "educational and experimental purposes only" line wherever the project is pitched.
 
 ## Before you write it at all
 
@@ -157,6 +161,6 @@ These are the choke points. Route through them; bypassing one is a bug, not a sh
 ## Documentation
 
 - The end-user docs live in [docs/](docs/); the design guide lives in
-  [docs/developer/](docs/developer/) as nine numbered docs. Keep code and docs in sync, and record a
+  [docs/developer/](docs/developer/) as ten numbered docs. Keep code and docs in sync, and record a
   decision in the design guide when you make it, not only in a commit.
 - The README stays lean and claims only what is real.

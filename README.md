@@ -5,18 +5,27 @@ human-readable script and types it on another computer over USB. You write what 
 keys to press; Quacky turns that into USB HID keyboard reports, and the machine on the other end of
 the cable sees an ordinary keyboard typing text and key combinations, very fast.
 
-**One static binary, around 60 to 130 KB, with no dependency beyond libc**, and about 2,100 lines of
+**One static binary, around 60 to 130 KB, with no dependency beyond libc**, and about 3,800 lines of
 C you can read in an afternoon: a lexer, a Pratt parser, a tree-walking evaluator, and one module
-that talks to the keyboard. It is built to be learned from as much as used.
+that talks to the keyboard.
 
 ## Why
 
-A commercial typing-automation gadget costs well over $100, yet the microcontroller that does the
-work inside one costs under $10. Meanwhile the phone already in your pocket is a full USB device:
-every Android phone runs the Linux kernel, and its USB-C port is dual-role, so with the kernel's USB
-gadget support it can present itself to a computer as a keyboard. Quacky is the free, educational
-alternative that runs on hardware you already own. The USB side is handled by the companion
-[USB Arsenal](https://github.com/ravindu644/USB-Arsenal) project; Quacky only speaks keyboard.
+Quacky is a free, open-source replacement for commercial keystroke injection tools, built for
+educational and experimental purposes only. Those sell for well
+over $100, yet the microcontroller inside one costs under $10, and you do not need the gadget at all.
+The Linux kernel has shipped USB HID gadget support
+through configfs since 2015, and the phone already in your pocket is a full USB device: every Android
+phone runs that kernel, and its USB-C port is dual-role, so it can present itself to a computer as an
+ordinary keyboard. So why buy the hardware? Quacky is the software for it, its own language and its
+own interpreter, portable across architectures, running on what you already own. The USB side is
+handled by the companion [USB Arsenal](https://github.com/ravindu644/USB-Arsenal) project; Quacky
+only speaks keyboard.
+
+> [!CAUTION]
+> Quacky types into whatever computer the cable is plugged into, as fast as a keyboard can go. Use it
+> only on systems you own or are explicitly authorized to test. Keystroke injection against someone
+> else's machine is illegal in most places.
 
 ## What you get
 
@@ -64,6 +73,14 @@ make native                              # build output/quacky for this machine
 The `/dev/hidg0` node comes from [USB Arsenal](https://github.com/ravindu644/USB-Arsenal); you do
 not need it for a dry run. See [docs/getting-started.md](docs/getting-started.md) for the full walk
 through.
+
+> [!NOTE]
+> A plain run is a dry run: it prints a transcript and types nothing. Real typing happens only in
+> `--hid /dev/hidgX` mode. A syntax error types nothing either, so you can rehearse safely.
+
+> [!WARNING]
+> In `--hid` mode there is no undo. A script that opens a terminal and runs a command does exactly
+> that on the host, at full speed. Rehearse with a dry run and `--check` before you plug in.
 
 ## Measured speed
 
