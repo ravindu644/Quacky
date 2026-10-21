@@ -1,0 +1,36 @@
+# A tour of functions: parameters, return, recursion, and touching globals.
+# Rehearse it with a dry run first:  quacky examples/functions.qk
+
+# Parameters and a return value. Functions can be called before they are
+# defined, so order in the file does not matter.
+typeln 2 + 3 = ${add(2, 3)}
+
+# Recursion works, so a function may call itself.
+typeln fib(10) = ${fib(10)}
+
+# A function with no return value is fine when it only types.
+greet("world")
+
+# A function can read and write a top-level variable by name, like a shell
+# function. Locals inside the function do not leak back out.
+count = 0
+tick()
+tick()
+typeln ticked $count times
+
+func add a b
+  return a + b
+end
+
+func fib n
+  if n < 2 then return n fi
+  return fib(n - 1) + fib(n - 2)
+end
+
+func greet name
+  typeln Hello, $name!
+end
+
+func tick
+  count = count + 1     # count lives at the top level, not here
+end

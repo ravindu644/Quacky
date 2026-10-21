@@ -4,6 +4,11 @@ Worked scripts that build from a single line to a complete routine. Each one is 
 rehearse any of them with a dry run (`quacky file.qk`) to see the transcript before running it for
 real. For the features used here, see [language.md](language.md) and [keys.md](keys.md).
 
+Prefer ready-to-run files? The [`examples/`](../examples/) directory holds the same spirit as
+standalone scripts: [`functions.qk`](../examples/functions.qk) tours parameters, `return` and
+recursion, and [`pad-numbers.qk`](../examples/pad-numbers.qk) zero-pads numbers (`00`-`99`,
+`000`-`999`) with a small helper, since the language has no printf.
+
 ## 1. Hello
 
 The smallest useful script. `typeln` types the text and presses Enter (`type` alone would not).

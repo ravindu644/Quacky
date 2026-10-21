@@ -1,0 +1,30 @@
+# Zero-pad numbers to a fixed width. The language has no printf, so a small
+# function builds the leading zeros itself. Rehearse with:
+#   quacky examples/pad-numbers.qk
+
+# Returns n as a string left-padded with zeros to `width` digits.
+# A number already that wide (or wider) comes back unchanged.
+func pad n width
+  s = "" + n            # "" + n coerces the number to a string
+  p = 1                 # p climbs to 10^(width-1): the smallest width-digit number
+  w = 1
+  while w < width do
+    p = p * 10
+    w = w + 1
+  done
+  while n < p && p > 1 do   # one leading zero for each power n falls short of
+    s = "0" + s
+    p = p / 10
+  done
+  return s
+end
+
+# 00 .. 99
+for i in 0 .. 99 do
+  typeln ${pad(i, 2)}
+done
+
+# Same helper, width 3, gives 000 .. 999. Change the width, nothing else.
+for i in 0 .. 999 do
+  typeln ${pad(i, 3)}
+done
