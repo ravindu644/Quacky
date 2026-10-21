@@ -113,7 +113,14 @@ Integer math is predictable: `+ - *` wrap on overflow (two's complement, never u
 ## Typing text: `type` and `typeln`
 
 Two statements put text on the host. Both take everything after the first space verbatim, so `#`,
-`"` and `;` are ordinary characters here, not comments or quotes.
+`"` and `;` are ordinary characters here, not comments or quotes. One consequence: a `type` or
+`typeln` must be the **last** statement on its line. You can chain with `;` up to it, but anything
+after it is typed, not run.
+
+```
+super ; sleep 250 ; type hello    # right: the type is last on the line
+type hello ; enter                # wrong: this types "hello ; enter", Enter is never pressed
+```
 
 - **`type`** types exactly the text, with no Enter at the end.
 - **`typeln`** types the text and then presses Enter (a trailing newline).
@@ -348,6 +355,8 @@ A short list of rules that surprise people:
 - **The End key is `endkey`**, because `end` is a keyword.
 - **`type` does not press Enter; `typeln` does.** Reach for `typeln` when you want a line and Enter.
 - **`type`/`typeln` keep spaces** after the first one.
+- **A `type`/`typeln` must be last on its line.** It reads to the end of the line, so `type x ; enter`
+  types `x ; enter` rather than pressing Enter. Chain with `;` up to the `type`, not after it.
 - **`$name` only works in a `type`/`typeln` line.** Outside typed text, name the variable with no
   `$`: `delay d`, not `delay $d`. The `$` has no text to paste into.
 - **`\$` only works in a `type`/`typeln` line**, not inside a `"string"`.
