@@ -62,7 +62,16 @@ shift + tab
 ```
 
 Shifted symbols (`! @ # $ % ^ & * ( ) _ + { } | : " ~ < > ?` and the capital letters) carry their
-own Shift automatically when used as a key.
+own Shift automatically when used as a key. So to send "Ctrl plus" (zoom in), write the key on the
+right of the separator:
+
+```
+ctrl + +        # Ctrl with the + key, which is Shift+=, so the host sees Ctrl+Shift+=
+ctrl + =        # many apps accept plain Ctrl+= for zoom in
+ctrl + -        # Ctrl with the - key (zoom out)
+```
+
+The first `+` on a line joins the chord; a second `+` is the key itself.
 
 One edge case: a line that starts with a bare digit is read as a number, not a key. Press a digit on
 its own by writing it after a modifier (`shift + 1`) or type it as text (`type 1`). A single letter

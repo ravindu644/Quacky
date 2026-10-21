@@ -715,15 +715,11 @@ static void resolve_key(Parser *p, Token k, Chord *c) {
       chord_add_usage(p, c, k, r.value);
       return;
     }
-    if (k.len == 1) {
-      CharKey ck = char_key((unsigned char)k.start[0]);
-      if (ck.ok) {
-        c->mod = (uint8_t)(c->mod | ck.mod);
-        chord_add_usage(p, c, k, ck.usage);
-        return;
-      }
-    }
-  } else if (k.kind == T_INT && k.len == 1) {
+  }
+  /* Any single source character is a key through the US keymap, whatever token
+     kind it lexed as. Punctuation like + = * lexes as an operator token, not an
+     ident, so it must be matched on the span, or `ctrl + +` fails. */
+  if (k.len == 1) {
     CharKey ck = char_key((unsigned char)k.start[0]);
     if (ck.ok) {
       c->mod = (uint8_t)(c->mod | ck.mod);
