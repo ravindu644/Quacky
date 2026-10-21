@@ -90,6 +90,17 @@ printf 'ultramode 1\ntypeln abcabc\n' > "$TMP/mu.qk"; mode_eq "ultramode==--ultr
 printf 'fastmode 1\ntypeln abcabc\n'  > "$TMP/mf.qk"; mode_eq "fastmode==--fast"   "$TMP/mf.qk" "--fast"
 printf 'fastmode 0\ntypeln abcabc\n'  > "$TMP/mo.qk"; mode_eq "fastmode0==plain"   "$TMP/mo.qk" ""
 
+# import-once must dedup by file identity, not path spelling: the same module
+# reached once by a relative path and once by an absolute path is one file. The
+# absolute path is only known at runtime, so this case is generated here rather
+# than committed as a golden case.
+IMP="$TMP/imp"; mkdir -p "$IMP/lib"
+printf 'func shared_fn\n  typeln hi\nend\n'            > "$IMP/lib/mod.qk"
+printf 'import %s/lib/mod.qk\n' "$IMP"                 > "$IMP/lib/via.qk"
+printf 'import ./lib/mod.qk\nimport ./lib/via.qk\nshared_fn()\n' > "$IMP/main.qk"
+if "$QUACKY" -d 0 --check "$IMP/main.qk" >/dev/null 2>&1; then ok
+else bad "import-once dedups relative vs absolute spelling"; fi
+
 # Timing and fuzzing: wall-clock sensitive, so local runs only. Measure against
 # an -O2 build, not the ASan one whose start-up cost would blur the tight bounds;
 # the x86_64 release binary runs on this host when `make all-build` has produced it.

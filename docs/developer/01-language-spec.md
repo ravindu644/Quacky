@@ -360,7 +360,9 @@ target's functions join the program (hoisted, visible everywhere) and its top-le
 in place at the `import`, so a module's `const`/variable assignments take effect from that point.
 `PATH` is an unquoted rest-of-line token (same raw-line lexing as `type`), resolved relative to the
 **importing file's** directory, or used as-is if absolute. A file already imported, keyed by its
-lexically-normalized path, is pulled in only once; this makes diamonds idempotent and stops cycles.
+`(st_dev, st_ino)` identity from `stat(2)` (not the spelling of the path, so a relative and an
+absolute route to one file match), is pulled in only once; this makes diamonds idempotent and stops
+cycles.
 Because import is resolved entirely during parsing, a missing/binary/non-UTF-8 module or a syntax
 error inside one is reported before any output (and under `--check`), preserving the no-output
 guarantee of §2. `import` is a top-level statement; inside a function or block it is an error.

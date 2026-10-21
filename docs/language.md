@@ -397,7 +397,8 @@ A few rules:
   as-is.
 - **Each file is imported once.** Importing the same file again (directly, or through a diamond where
   two modules both import a third) pulls it in a single time, which also means an import cycle just
-  stops rather than looping.
+  stops rather than looping. Sameness is by the actual file on disk, not the text of the path, so a
+  module reached once by a relative path and once by an absolute one is still imported only once.
 - **`import` is top level only**, and like `type` it reads the rest of the line verbatim: a trailing
   `# comment`, a `;`, or anything else after the path becomes part of the path. One `import` per
   line, and keep comments on their own line.

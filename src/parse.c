@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define ARENA_CHUNK (64 * 1024)
 
@@ -115,6 +116,11 @@ typedef enum {
 } Prec;
 
 typedef struct {
+  dev_t dev;
+  ino_t ino;
+} FileId;
+
+typedef struct {
   Lexer lx;
   Arena *a;
   const char *filename;
@@ -125,7 +131,11 @@ typedef struct {
   int expr_depth; /* bounds expression nesting (03 section 7) */
   Func **funcs;   /* scratch, copied to the arena at the end */
   int nfuncs, funcs_cap;
-  char **imported; /* canonical paths already imported, for import-once */
+  /* import-once identity: the (device, inode) of every file already imported.
+     This is the real "same file" test, so a module reached by a relative
+     spelling from one file and an absolute one from another dedups correctly,
+     which a lexical path comparison cannot do. */
+  FileId *imported;
   int nimported, imported_cap;
   int import_depth; /* bounds nested-import recursion */
   int for_counter;  /* makes hidden loop-end names unique */
@@ -1209,38 +1219,45 @@ static void parse_import(Parser *p, Stmt ***stmts, int *n, int *cap) {
   memcpy(rel, s, (size_t)len);
   rel[len] = '\0';
 
-  /* Dedup key for import-once: resolve against the importing file, then
-     collapse
-     ./ and ../ lexically with normalize_path so the same module reached by
-     different spellings keys the same. Not realpath: musl does not expose it
-     under our feature macros, and a lexical key also works before the file
-     exists. */
+  /* Resolve against the importing file, then take the file's (dev, ino) as its
+     import-once identity. stat follows the same spelling tf_load opens, so a
+     module reached by both a relative and an absolute path is one file here. */
   char *resolved = tf_resolve(p->filename, rel);
   if (!resolved) {
     fputs("quacky: out of memory\n", stderr);
     exit(1);
   }
-  char *key = normalize_path(resolved); /* collapse ./ and ../ so the same */
-  free(resolved);                       /* module dedups under import-once */
-
-  for (int i = 0; i < p->nimported; i++)
-    if (strcmp(p->imported[i], key) == 0) {
-      free(key);
-      free(rel);
-      return; /* already imported */
-    }
+  struct stat st;
+  bool have_id = stat(resolved, &st) == 0;
+  if (have_id)
+    for (int i = 0; i < p->nimported; i++)
+      if (p->imported[i].dev == st.st_dev && p->imported[i].ino == st.st_ino) {
+        free(resolved);
+        free(rel);
+        return; /* already imported */
+      }
 
   char errbuf[256];
   char *buf = NULL;
   size_t blen = 0;
   if (!tf_load(p->filename, rel, (size_t)len, &buf, &blen, errbuf,
                sizeof errbuf)) {
-    free(key);
+    free(resolved);
     free(rel);
     perr(p, pathtok, "%s", errbuf);
   }
   free(rel);
-  PUSH(&p->imported, &p->nimported, &p->imported_cap, key); /* takes over key */
+  if (have_id) {
+    FileId id = {st.st_dev, st.st_ino};
+    PUSH(&p->imported, &p->nimported, &p->imported_cap, id);
+  }
+
+  /* A tidy path for diagnostics inside the module (arena-lived, no free). */
+  char *norm = normalize_path(resolved);
+  char *key = arena_alloc(p->a, strlen(norm) + 1);
+  strcpy(key, norm);
+  free(norm);
+  free(resolved);
 
   /* The lexer needs NUL-terminated, mutable source that outlives eval (name
      Strs point into it), so keep it in the arena. */
@@ -1305,7 +1322,11 @@ Program *parse(Arena *a, const char *filename, char *src, bool check) {
   int n = 0, cap = 0;
   /* Seed import-once with the entry file, so a module that imports it back is a
      no-op instead of re-running the entry body. */
-  PUSH(&p.imported, &p.nimported, &p.imported_cap, normalize_path(filename));
+  struct stat est;
+  if (stat(filename, &est) == 0) {
+    FileId id = {est.st_dev, est.st_ino};
+    PUSH(&p.imported, &p.nimported, &p.imported_cap, id);
+  }
   parse_toplevel(&p, &stmts, &n, &cap);
 
   Block *top = arena_alloc(a, sizeof *top);
@@ -1318,8 +1339,6 @@ Program *parse(Arena *a, const char *filename, char *src, bool check) {
   prog->funcs = arena_dup(&p, p.funcs, (size_t)p.nfuncs * sizeof *p.funcs);
   prog->nfuncs = p.nfuncs;
   free(p.funcs);
-  for (int i = 0; i < p.nimported; i++)
-    free(p.imported[i]);
   free(p.imported);
   return prog;
 }
