@@ -141,6 +141,19 @@ type   three leading spaces are kept (the first space is just the separator)
 Inside a `type` or `typeln` line, `$name` is replaced by a variable's value, and `${ ... }`
 evaluates any expression. Use `\$` for a literal dollar sign.
 
+**`$` only works in typed text.** It means "paste this value into the text I am typing", so it
+belongs only in a `type` or `typeln` line. Everywhere else, a `delay`, a `sleep`, an `if`, a
+function-call argument, any expression, you are not typing text, so you just name the variable with
+no `$`:
+
+```
+d = 300
+delay d                  # right: delay takes an expression
+delay $d                 # error: unexpected character '$'
+open_app(browser)        # right: a call argument is an expression
+type opening $browser    # right: $ belongs here, inside typed text
+```
+
 ```
 name  = "world"
 count = 3
@@ -335,4 +348,6 @@ A short list of rules that surprise people:
 - **The End key is `endkey`**, because `end` is a keyword.
 - **`type` does not press Enter; `typeln` does.** Reach for `typeln` when you want a line and Enter.
 - **`type`/`typeln` keep spaces** after the first one.
+- **`$name` only works in a `type`/`typeln` line.** Outside typed text, name the variable with no
+  `$`: `delay d`, not `delay $d`. The `$` has no text to paste into.
 - **`\$` only works in a `type`/`typeln` line**, not inside a `"string"`.
