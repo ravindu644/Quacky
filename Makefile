@@ -27,7 +27,7 @@ else
 endif
 
 # A new .c under src/ is picked up with no edit here. Headers live in src/include/;
-# there is no header-dependency tracking, so run `make clean` after editing a header.
+# header dependencies are tracked (-MMD), so editing a header rebuilds what includes it.
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 INC  = -I$(SRC_DIR)/include
 
@@ -36,6 +36,7 @@ CSTD  := -std=c11 -D_POSIX_C_SOURCE=200809L
 COPT  := -O2 -ffunction-sections -fdata-sections
 CWARN := -Wall -Wextra -Wshadow -Wconversion -Wvla -Werror
 CFLAGS   = $(CSTD) $(COPT) $(CWARN) $(INC)
+CFLAGS  += -MMD -MP
 LDFLAGS := -static -Wl,--gc-sections
 
 # Normalise the arch for the per-arch object dir (so builds do not collide).
@@ -44,6 +45,10 @@ ARCH := $(shell $(CC) -dumpmachine 2>/dev/null | cut -d'-' -f1 | \
 
 OBJ_DIR = $(OUT_DIR)/.obj/$(ARCH)
 OBJS    = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+
+# -MMD writes a .d per object, pulled in here, so editing a header rebuilds only
+# what includes it (no `make clean` needed).
+-include $(OBJS:.o=.d)
 
 # Find a musl cross-compiler for a triplet, in order of preference.
 HOME_VAR := $(shell echo $$HOME)
