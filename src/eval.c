@@ -447,6 +447,21 @@ static Status eval_expr(Interp *I, Expr *e, Value *out) {
     case T_FASTMODE:
       v = out_fast(I->out);
       break;
+    case T_CAPSLOCK_ON:
+    case T_NUMLOCK_ON:
+    case T_SCROLLLOCK_ON: {
+      /* The host LED reads are bool and can fail (no host in a dry run, or a
+         write-only node), unlike the four settings above. */
+      int bit = (e->bin.op == T_NUMLOCK_ON)    ? 0
+                : (e->bin.op == T_CAPSLOCK_ON) ? 1
+                                               : 2;
+      bool b;
+      const char *err = NULL;
+      if (out_led(I->out, bit, &b, &err) != ST_OK)
+        return rt_error(I, e->line, e->col, "%s", err);
+      *out = (Value){VAL_BOOL, .b = b};
+      return ST_OK;
+    }
     default: /* T_ULTRAMODE */
       v = out_ultra(I->out);
       break;

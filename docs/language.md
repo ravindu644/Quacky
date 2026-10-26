@@ -298,6 +298,24 @@ end
 
 (`sleep` and `repeat` are one-shot actions with no stored value, so they are not readable.)
 
+### Reading the host's lock-key LEDs
+
+`capslock_on`, `numlock_on` and `scrolllock_on` read back as a `bool` whether the host currently has
+that lock LED lit. They are the live state the host reports, not a setting you wrote. Mind the `_on`:
+plain `capslock` presses the Caps Lock key, `capslock_on` reads its light.
+
+```
+capslock                       # press the key to toggle Caps Lock
+sleep 200                      # give the host a moment to answer
+if capslock_on then
+  typeln caps is on now
+fi
+```
+
+These need a real host, so they only work under `--hid`; in a dry run there is nothing to read and
+the script stops with an error. See [`examples/os-detect.qk`](../examples/os-detect.qk), which uses
+them to tell Windows, macOS and Linux apart.
+
 In a dry run (no `--hid`), every pause is shown so you can see the timing: an explicit `sleep` prints
 `[sleep 400ms]` and a `delay` gap prints `[delay 50ms]`, right where they happen in the output.
 

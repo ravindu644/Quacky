@@ -333,6 +333,10 @@ static const ParseRule rules[T_ERROR + 1] = {
     [T_KEYDELAY] = {pf_setting, NULL, P_NONE},
     [T_FASTMODE] = {pf_setting, NULL, P_NONE},
     [T_ULTRAMODE] = {pf_setting, NULL, P_NONE},
+    /* Host-LED reads: read-only, so only a prefix rule, no statement form. */
+    [T_CAPSLOCK_ON] = {pf_setting, NULL, P_NONE},
+    [T_NUMLOCK_ON] = {pf_setting, NULL, P_NONE},
+    [T_SCROLLLOCK_ON] = {pf_setting, NULL, P_NONE},
     [T_LPAREN] = {pf_grouping, NULL, P_NONE},
     [T_MINUS] = {pf_unary, in_binary, P_TERM},
     [T_BANG] = {pf_unary, NULL, P_NONE},

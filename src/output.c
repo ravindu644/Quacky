@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -142,8 +143,14 @@ bool out_open(Output *o, OutMode mode, const char *path, int64_t tick_ms) {
   o->tick_ns = tick_ms * 1000000;
 
   if (mode == OUT_HID) {
-    o->fd = open(
-        path, O_WRONLY); /* a device node: USB Arsenal created it, we do not */
+    /* A device node: USB Arsenal created it, we do not. Open read-write so the
+       host's LED output report can be read back (the `*_on` reads); fall back
+       to write-only if the node is not readable, since reliable typing matters
+       more than the reads, which then fail loudly at the reading statement. */
+    o->fd = open(path, O_RDWR);
+    o->can_read = (o->fd >= 0);
+    if (o->fd < 0)
+      o->fd = open(path, O_WRONLY);
   } else if (path) {
     o->fd = open(path, O_WRONLY | O_APPEND | O_CREAT,
                  0644); /* O_APPEND makes concurrent runs interleave cleanly */
@@ -491,3 +498,35 @@ int64_t out_delay_ms(const Output *o) { return o->default_delay; }
 int64_t out_tick_ms(const Output *o) { return o->tick_ns / 1000000; }
 int64_t out_fast(const Output *o) { return o->fast ? 1 : 0; }
 int64_t out_ultra(const Output *o) { return o->ultra ? 1 : 0; }
+
+/* Drain every output report the host has queued, keeping the last one as the
+   current LED state. The host sends a report only when a lock key's LED
+   changes, so between changes there is nothing to read and the cache stands. A
+   zero poll timeout makes this a non-blocking peek, so it never stalls the
+   script; the write path stays blocking and untouched. The LED bitmap is the
+   last byte of the report, which also skips a leading report-ID byte if the
+   descriptor has one. */
+static void drain_led(Output *o) {
+  struct pollfd pfd = {.fd = o->fd, .events = POLLIN};
+  while (poll(&pfd, 1, 0) > 0 && (pfd.revents & POLLIN)) {
+    uint8_t buf[8];
+    ssize_t n = read(o->fd, buf, sizeof buf);
+    if (n <= 0)
+      break;
+    o->led_state = buf[n - 1];
+  }
+}
+
+Status out_led(Output *o, int bit, bool *val, const char **err) {
+  if (o->mode != OUT_HID) {
+    *err = "cannot read host LEDs in a dry run (use --hid)";
+    return ST_ERR;
+  }
+  if (!o->can_read) {
+    *err = "the gadget node opened write-only, so its LEDs cannot be read";
+    return ST_ERR;
+  }
+  drain_led(o);
+  *val = (((unsigned)o->led_state >> bit) & 1u) != 0;
+  return ST_OK;
+}

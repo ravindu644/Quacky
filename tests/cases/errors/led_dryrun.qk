@@ -1,0 +1,3 @@
+# Host LED state needs a real host. A dry run has none, so a *_on read errors
+# instead of silently returning a wrong value; only --hid can read it.
+x = capslock_on

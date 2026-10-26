@@ -90,8 +90,10 @@ straight from the public USB standards, not from any third-party tool:
   descriptor): the 8-byte report shape and the press-then-release convention.
   https://usb.org/document-library/device-class-definition-hid-111
 - **Linux USB gadget / f_hid** (`/dev/hidgN`): a report is delivered by `write(2)`ing the
-  descriptor's report length to the node; the host LED output report is readable but unused
-  here. Documentation/usb/gadget_hid.rst in the kernel tree.
+  descriptor's report length to the node; the host LED output report is read back for the
+  `capslock_on` / `numlock_on` / `scrolllock_on` reads (05). The kernel's `hid_gadget_test`
+  (`select`/`read` on the same fd) is the pattern. Documentation/usb/gadget_hid.rst in the kernel
+  tree.
 
 ## Man pages and documents consulted
 - `clock_nanosleep(2)`: https://man7.org/linux/man-pages/man2/clock_nanosleep.2.html — EINTR with `TIMER_ABSTIME`, no `rem`, never restarted by `SA_RESTART`, past deadline returns immediately, absolute timers avoid drift.

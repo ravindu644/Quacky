@@ -8,6 +8,9 @@ Prefer ready-to-run files? The [`examples/`](../examples/) directory holds the s
 standalone scripts: [`functions.qk`](../examples/functions.qk) tours parameters, `return` and
 recursion, and [`pad-numbers.qk`](../examples/pad-numbers.qk) zero-pads numbers (`00`-`99`,
 `000`-`999`) with a small helper, since the language has no printf.
+[`os-detect.qk`](../examples/os-detect.qk) tells Windows, macOS and Linux apart by reading the
+host's lock-key LEDs; unlike the others it cannot be dry-run (it needs a real host), so run it with
+`--hid`.
 
 ## 1. Hello
 

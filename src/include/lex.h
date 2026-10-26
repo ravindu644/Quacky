@@ -46,6 +46,12 @@ typedef enum {
   T_FASTMODE,
   T_ULTRAMODE,
   T_REPEAT,
+  /* read-only host-LED reads: the live lock-key LED state the host sends back.
+     Named with the `_on` suffix so the plain key names capslock/numlock/
+     scrolllock stay free to press the keys (keys.c). */
+  T_CAPSLOCK_ON,
+  T_NUMLOCK_ON,
+  T_SCROLLLOCK_ON,
   /* punctuation and operators */
   T_LPAREN,
   T_RPAREN,

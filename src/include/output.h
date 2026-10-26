@@ -31,6 +31,11 @@ typedef struct {
                  only) */
   uint8_t held_mod; /* modifier bits held by `hold`, merged into every report */
   uint8_t held_key[6]; /* non-modifier usages held; 0 = empty slot */
+  bool can_read;     /* the hidg node opened readable (O_RDWR), so the host LED
+                        output report can be read back; false = write-only */
+  uint8_t led_state; /* last LED bitmap the host sent (bit 0 Num, 1 Caps, 2
+                        Scroll); the host only sends on a change, so this caches
+                        it between reads */
   char errbuf[128];  /* holds a formatted message so a returned *err stays valid
                       */
   bool write_failed; /* set when an output write fails. Such a failure is
@@ -79,6 +84,13 @@ int64_t out_delay_ms(const Output *o);
 int64_t out_tick_ms(const Output *o);
 int64_t out_fast(const Output *o);
 int64_t out_ultra(const Output *o);
+/* Read one host lock-key LED back (bit 0 Num, 1 Caps, 2 Scroll). Unlike the
+   settings above this can fail: there is no host in a dry run, and a node that
+   opened write-only cannot be read. On failure *err gets a message (static, so
+   it outlives the call) and the return is ST_ERR; the evaluator turns that into
+   a runtime error at the reading expression. Drains any pending reports first,
+   so *val is the current state even though the host only sends on a change. */
+Status out_led(Output *o, int bit, bool *val, const char **err);
 /* The evaluator calls this once at the start of each output statement; it
    pauses default_delay before every action but the first (the gap between
    keystrokes), so it never pads the start or end of a script. */

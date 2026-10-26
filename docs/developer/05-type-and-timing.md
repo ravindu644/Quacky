@@ -38,7 +38,8 @@ typedef struct {
 ### 1.1 Opening
 
 ```
---hid DEV : fd = open(DEV, O_WRONLY)                           // a device node: no O_APPEND, no O_CREAT
+--hid DEV : fd = open(DEV, O_RDWR)                             // a device node: no O_APPEND, no O_CREAT
+            can_read = (fd >= 0); if that failed, retry open(DEV, O_WRONLY)  // read-back is a bonus, typing is not
             failure → usage-level error, exit 64+ (06)
 -o FILE   : fd = open(FILE, O_WRONLY | O_APPEND | O_CREAT, 0644), mode = transcript
 no -o     : fd = STDOUT_FILENO, mode = transcript
@@ -244,6 +245,25 @@ int64_t out_tick_ms(const Output *o);    // o->tick_ns / 1000000, back to ms
 int64_t out_fast(const Output *o);       // 0 or 1
 int64_t out_ultra(const Output *o);      // 0 or 1
 ```
+
+A fifth read is different in kind: `capslock_on` / `numlock_on` / `scrolllock_on` return the host's
+live lock-key LEDs, not a stored setting, so the getter is fallible and `bool`:
+
+```c
+Status out_led(Output *o, int bit, bool *val, const char **err);  // bit 0 Num, 1 Caps, 2 Scroll
+```
+
+The host sends a one-byte HID **output** report (the mirror of the 8-byte input reports we write)
+whenever a lock LED changes. To read it we open the node `O_RDWR` (§1.1) instead of write-only, the
+one place anything reads the device; typing stays blocking and untouched. `out_led` drains every
+queued report with a zero-timeout `poll`, keeping the last byte as `o->led_state` (so a read returns
+the current state even between changes), then returns the requested bit. It fails, as a runtime
+error at the reading expression, when there is no host to answer: `OUT_TRANSCRIPT` mode (a dry run
+cannot be dry-run, by design) or a node that would only open write-only. The parser reuses the
+`E_SETTING` keyword-reads-itself machinery (02 §4.2); only the evaluator branch is new, because this
+is the first read that is `bool` and can fail. **Deferred on purpose:** blocking `wait_for_*`
+statements (polling with `sleep` covers the need) and a native `$_OS` (OS detection is a `.qk`
+script over these three reads, `examples/os-detect.qk`, not interpreter code).
 
 Two decisions worth keeping. **Symmetric keyword, not a namespace.** We set with `keydelay N` and
 read with bare `keydelay`, one word both ways. A `quacky.keydelay`-style member syntax was rejected:

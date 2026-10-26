@@ -47,6 +47,9 @@ These are the keys that have a name. Use the name directly in a chord or as an a
 A few notes:
 
 - The End key is **`endkey`**, not `end` (`end` is a language keyword).
+- `capslock`, `numlock` and `scrolllock` here **press** the key. To **read** whether the host has
+  that lock LED lit, use `capslock_on` / `numlock_on` / `scrolllock_on` in an expression (a `bool`,
+  `--hid` only). See [language.md](language.md#reading-the-hosts-lock-key-leds).
 - There are no media or consumer keys (volume, play, brightness). That is a deliberate limit: Quacky
   speaks only the standard keyboard.
 

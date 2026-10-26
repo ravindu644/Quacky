@@ -1,0 +1,62 @@
+# Detect the host OS from how it reflects the keyboard lock-key LEDs, then type
+# the answer. This needs a real host, so run it for real, not as a dry run:
+#
+#   quacky --hid /dev/hidg0 examples/os-detect.qk
+#
+# A dry run has no host, so the capslock_on / numlock_on / scrolllock_on reads
+# error out. That is the point: there is nothing to detect without a host.
+#
+# The method is not timing, just whether the host echoes a toggled LED:
+#   no CapsLock echo at all  -> the USB HID stack is not active yet
+#   NumLock not reflected    -> macOS (it ignores NumLock on an external keyboard)
+#   ScrollLock reflected     -> Windows; not reflected -> Linux
+# Each probe toggles a key, waits for the host to answer, and restores it.
+
+settle = 400   # ms to let the host process a lock-key change
+
+# Turn Caps Lock off if it is on, so the result we type is not case-inverted by
+# the host. A plain user-defined helper, no special support needed.
+func caps_off
+  if capslock_on then
+    capslock
+    sleep settle
+  fi
+end
+
+func detect_os
+  # Connectivity: toggle CapsLock and see if the host reflects the LED.
+  was = capslock_on
+  capslock
+  sleep settle
+  if capslock_on == was then
+    return "unknown"       # no echo: the host is not talking HID to us
+  fi
+  capslock                 # restore
+  sleep settle
+
+  # NumLock: macOS does not reflect it on an external keyboard.
+  was = numlock_on
+  numlock
+  sleep settle
+  if numlock_on == was then
+    return "macos"
+  fi
+  numlock                  # restore
+  sleep settle
+
+  # ScrollLock: Windows reflects it, most Linux desktops do not.
+  was = scrolllock_on
+  scrolllock
+  sleep settle
+  reflected = scrolllock_on != was
+  scrolllock               # restore
+  sleep settle
+  if reflected then
+    return "windows"
+  fi
+  return "linux"
+end
+
+os = detect_os()          # probe first (this toggles the lock keys)
+caps_off()                # then make sure Caps is off so the text types cleanly
+typeln Detected OS: $os

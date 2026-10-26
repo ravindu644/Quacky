@@ -1,0 +1,4 @@
+1
+cases/errors/led_dryrun.qk:3:5: error: cannot read host LEDs in a dry run (use --hid)
+  x = capslock_on
+      ^
