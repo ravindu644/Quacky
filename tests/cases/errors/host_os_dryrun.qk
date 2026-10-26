@@ -1,0 +1,3 @@
+# Detecting the host OS toggles lock keys and reads the LEDs the host reflects.
+# A dry run has no host, so host_os errors instead of guessing; use --hid.
+os = host_os

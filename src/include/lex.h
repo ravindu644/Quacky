@@ -52,6 +52,10 @@ typedef enum {
   T_CAPSLOCK_ON,
   T_NUMLOCK_ON,
   T_SCROLLLOCK_ON,
+  /* read-only host OS probe: toggles lock keys, reads which LEDs the host
+     reflects, evaluates to a string (02 §4.2). Like the LED reads above, it is
+     a read with no statement form. */
+  T_HOST_OS,
   /* punctuation and operators */
   T_LPAREN,
   T_RPAREN,

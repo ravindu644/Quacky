@@ -530,3 +530,149 @@ Status out_led(Output *o, int bit, bool *val, const char **err) {
   *val = (((unsigned)o->led_state >> bit) & 1u) != 0;
   return ST_OK;
 }
+
+/* Wait for the host to send any LED output report, or until timeout_ms elapses.
+   Returns whether a report arrived (and updates led_state from it). This is the
+   signal that the host reflects the lock key we just toggled: a report arrives
+   exactly when the host echoes the change, whatever the bit values were before,
+   so it does not depend on knowing the initial LED state. Event-driven: poll
+   blocks until a report or the remaining time, so it returns on the host's real
+   latency (tens of ms) rather than a fixed pad. */
+static bool wait_led_report(Output *o, int64_t timeout_ms) {
+  struct timespec deadline;
+  clock_gettime(CLOCK_MONOTONIC, &deadline);
+  ts_add_ns(&deadline, timeout_ms * 1000000);
+  for (;;) {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    int64_t remain_ms = ts_diff_ns(&deadline, &now) / 1000000;
+    if (remain_ms <= 0)
+      return false;
+    struct pollfd pfd = {.fd = o->fd, .events = POLLIN};
+    int r = poll(&pfd, 1, (int)remain_ms);
+    if (r > 0 && (pfd.revents & POLLIN)) {
+      uint8_t buf[8];
+      ssize_t n = read(o->fd, buf, sizeof buf);
+      if (n > 0) {
+        o->led_state = buf[n - 1];
+        return true;
+      }
+    }
+    /* r == 0: timed out, the loop re-checks and returns false. r < 0 on EINTR:
+       just retry against the same deadline. */
+  }
+}
+
+/* Tap a lock key: one press report, one release. No wait_tick; detection is not
+   paced typing, and the pacing would only slow it down. */
+static Status tap_key(Output *o, uint8_t usage, const char **err) {
+  Status st = write_report(o, 0, &usage, 1, err);
+  if (st != ST_OK)
+    return st;
+  return write_report(o, 0, NULL, 0, err);
+}
+
+#define OS_PROBE_TIMEOUT_MS                                                    \
+  600 /* ceiling, and the timeout for the first (caps)                         \
+         probe, before we have calibrated */
+#define OS_ECHO_MULT                                                           \
+  5 /* no-echo timeout = this x the measured caps                              \
+       echo latency: a reflected key answers about                             \
+       as fast as Caps did */
+#define OS_ECHO_MIN_MS                                                         \
+  120 /* ... floored here so a sub-ms echo does not                            \
+         make the wait too twitchy */
+
+/* Toggle a lock key and report whether the host echoes an LED report for it,
+   i.e. whether the host reflects that key, waiting at most timeout_ms. Clears
+   any stale queued report first, so the only report that can arrive is the echo
+   of this toggle. On a write failure *st carries the error; the caller returns
+   it. */
+static bool key_is_reflected(Output *o, uint8_t usage, int64_t timeout_ms,
+                             const char **err, Status *st) {
+  drain_led(o); /* discard anything stale so we only see this toggle's echo */
+  if ((*st = tap_key(o, usage, err)) != ST_OK)
+    return false;
+  return wait_led_report(o, timeout_ms);
+}
+
+Status out_detect_os(Output *o, const char **name, const char **err) {
+  if (o->os_name) { /* detected once already; do not re-toggle the keys */
+    *name = o->os_name;
+    return ST_OK;
+  }
+  if (o->mode != OUT_HID) {
+    *err = "cannot detect the host OS in a dry run (use --hid)";
+    return ST_ERR;
+  }
+  if (!o->can_read) {
+    *err = "the gadget node opened write-only, so the host OS cannot be read";
+    return ST_ERR;
+  }
+
+  /* USB HID usages for the lock keys (keys.c). */
+  const uint8_t CAPS = 0x39, NUM = 0x53, SCROLL = 0x47;
+  Status st;
+
+  /* Connectivity and calibration: toggling CapsLock must make the host echo an
+     LED report (all of Windows, macOS and Linux reflect CapsLock). No echo at
+     all means the USB HID stack is not active, so there is nothing to detect.
+     Detecting the echo itself, not a bit value, is what makes this work when a
+     lock key starts on. We also time how long the echo takes, to size the
+     timeout for the probes that must wait out a *missing* echo below: a
+     reflected key answers about as fast as Caps did, so a few times that
+     latency is a confident "nothing is coming", far quicker than a fixed
+     ceiling. */
+  struct timespec t0, t1;
+  clock_gettime(CLOCK_MONOTONIC, &t0);
+  bool caps_reflected =
+      key_is_reflected(o, CAPS, OS_PROBE_TIMEOUT_MS, err, &st);
+  clock_gettime(CLOCK_MONOTONIC, &t1);
+  if (!caps_reflected) {
+    if (st != ST_OK)
+      return st;
+    (void)tap_key(o, CAPS, err); /* best-effort undo, ignore failure */
+    *name = "unknown";           /* not cached: a later read retries */
+    return ST_OK;
+  }
+  int64_t probe_ms = (ts_diff_ns(&t1, &t0) / 1000000) * OS_ECHO_MULT;
+  if (probe_ms < OS_ECHO_MIN_MS)
+    probe_ms = OS_ECHO_MIN_MS;
+  if (probe_ms > OS_PROBE_TIMEOUT_MS)
+    probe_ms = OS_PROBE_TIMEOUT_MS;
+
+  if ((st = tap_key(o, CAPS, err)) != ST_OK) /* restore */
+    return st;
+  wait_led_report(o, probe_ms); /* consume the restore's echo */
+
+  const char *result;
+
+  /* NumLock: macOS ignores it on an external keyboard, so no echo -> macOS. */
+  bool num_reflected = key_is_reflected(o, NUM, probe_ms, err, &st);
+  if (st != ST_OK)
+    return st;
+  if (!num_reflected) {
+    result = "macos"; /* nothing changed, so nothing to restore */
+  } else {
+    if ((st = tap_key(o, NUM, err)) != ST_OK) /* restore */
+      return st;
+    wait_led_report(o, probe_ms);
+
+    /* ScrollLock: Windows reflects it, most Linux desktops do not. */
+    bool scroll_reflected = key_is_reflected(o, SCROLL, probe_ms, err, &st);
+    if (st != ST_OK)
+      return st;
+    if (scroll_reflected) {
+      if ((st = tap_key(o, SCROLL, err)) != ST_OK) /* restore */
+        return st;
+      wait_led_report(o, probe_ms);
+      result = "windows";
+    } else {
+      result = "linux";
+    }
+  }
+
+  o->os_name = result; /* cache the definite result */
+  *name = result;
+  return ST_OK;
+}

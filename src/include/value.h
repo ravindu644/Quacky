@@ -72,6 +72,9 @@ void val_release(Value v);
    str_concat implements string `+`: one allocation, no intermediate buffer. */
 QStr *to_string(Value v);
 QStr *str_concat(const QStr *a, const QStr *b);
+/* Wrap a NUL-terminated C string as a fresh runtime QStr (rc = 1), owned by the
+   caller. Used for a value computed as a C string, like the host_os result. */
+QStr *qstr_dup(const char *s);
 
 /* Every integer UB case lives here, not at call sites (04 section 4). Returns
    ST_OK and writes *out, except `/`/`%` by zero which set *err to a message and

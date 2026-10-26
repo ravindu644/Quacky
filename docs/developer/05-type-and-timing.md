@@ -261,9 +261,39 @@ the current state even between changes), then returns the requested bit. It fail
 error at the reading expression, when there is no host to answer: `OUT_TRANSCRIPT` mode (a dry run
 cannot be dry-run, by design) or a node that would only open write-only. The parser reuses the
 `E_SETTING` keyword-reads-itself machinery (02 §4.2); only the evaluator branch is new, because this
-is the first read that is `bool` and can fail. **Deferred on purpose:** blocking `wait_for_*`
-statements (polling with `sleep` covers the need) and a native `$_OS` (OS detection is a `.qk`
-script over these three reads, `examples/os-detect.qk`, not interpreter code).
+is the first read that is `bool` and can fail.
+
+A sixth read, `host_os`, builds on the LED reads to name the host OS as a string:
+
+```c
+Status out_detect_os(Output *o, const char **name, const char **err);  // "windows"/"linux"/"macos"/"unknown"
+```
+
+It probes by toggling a lock key (a bare press/release report via `tap_key`, no `wait_tick`) and
+asking whether the host **echoes any LED report** for it, which is exactly whether the host reflects
+that key: NumLock not reflected -> macOS (it ignores NumLock on an external keyboard); ScrollLock
+reflected -> Windows, else Linux; no CapsLock echo at all -> `"unknown"`. The signal is report
+*arrival*, not a bit value: `key_is_reflected` first `drain_led`s the queue so only this toggle's
+echo can arrive, then `wait_led_report` blocks in `poll` until a report comes or the timeout. Keying
+off arrival rather than comparing the LED bitmap to a remembered value is deliberate: on a fresh
+process the cached state is unknown, and a lock key that starts *on* toggles *off* to the same bit
+value we would have assumed, so a bit-compare misses it (an early bug). `wait_led_report` is also
+the speed difference from the `.qk` version: it returns on the host's real latency (tens of ms)
+instead of a fixed `sleep`. Only the no-echo branches (macOS NumLock, Linux ScrollLock) have to
+wait, since you cannot conclude "no echo" without waiting, and that wait is **calibrated**: the
+CapsLock connectivity probe always echoes, so we time it and set the no-echo timeout to
+`OS_ECHO_MULT` (5x) that latency, floored at `OS_ECHO_MIN_MS` (120 ms) and capped at
+`OS_PROBE_TIMEOUT_MS` (600 ms, also the timeout for that first uncalibrated caps probe). A reflected
+key answers about as fast as Caps did, so 5x its latency is a confident "nothing is coming" --
+typically ~150-250 ms rather than a fixed 600. A
+definite result is cached in `o->os_name`, so a second read neither re-toggles the keys nor
+re-probes; `"unknown"` is not cached, so a read after the host comes up retries. It fails in a dry
+run like the LED reads. The evaluator wraps the returned static string with `qstr_dup` (value.c)
+into a `VAL_STR`.
+
+**Deferred on purpose:** blocking `wait_for_*` statements (polling with `sleep` covers the need).
+`host_os` supersedes the earlier plan to keep OS detection script-only; the `.qk`
+`examples/os-detect.qk` stays as a worked example of the lock-key reads underneath it.
 
 Two decisions worth keeping. **Symmetric keyword, not a namespace.** We set with `keydelay N` and
 read with bare `keydelay`, one word both ways. A `quacky.keydelay`-style member syntax was rejected:

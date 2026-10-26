@@ -10,7 +10,9 @@ recursion, and [`pad-numbers.qk`](../examples/pad-numbers.qk) zero-pads numbers 
 `000`-`999`) with a small helper, since the language has no printf.
 [`os-detect.qk`](../examples/os-detect.qk) tells Windows, macOS and Linux apart by reading the
 host's lock-key LEDs; unlike the others it cannot be dry-run (it needs a real host), so run it with
-`--hid`.
+`--hid`. For everyday use the built-in `host_os` keyword does the same detection in one line and
+faster (`typeln Detected OS: ${host_os}`); `os-detect.qk` is kept as a worked example of the lock-key
+reads it is built on.
 
 ## 1. Hello
 

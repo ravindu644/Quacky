@@ -462,6 +462,13 @@ static Status eval_expr(Interp *I, Expr *e, Value *out) {
       *out = (Value){VAL_BOOL, .b = b};
       return ST_OK;
     }
+    case T_HOST_OS: {
+      const char *name = NULL, *err = NULL;
+      if (out_detect_os(I->out, &name, &err) != ST_OK)
+        return rt_error(I, e->line, e->col, "%s", err);
+      *out = (Value){VAL_STR, .s = qstr_dup(name)};
+      return ST_OK;
+    }
     default: /* T_ULTRAMODE */
       v = out_ultra(I->out);
       break;

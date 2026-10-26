@@ -316,6 +316,25 @@ These need a real host, so they only work under `--hid`; in a dry run there is n
 the script stops with an error. See [`examples/os-detect.qk`](../examples/os-detect.qk), which uses
 them to tell Windows, macOS and Linux apart.
 
+### Detecting the host OS
+
+`host_os` does that detection for you and reads back as a string: `"windows"`, `"linux"`, `"macos"`,
+or `"unknown"`. It works by briefly toggling the lock keys and seeing which LEDs the host reflects
+(NumLock ignored means macOS, ScrollLock reflected means Windows, otherwise Linux; no reply at all
+means `"unknown"`). It leaves the locks as it found them.
+
+```
+os = host_os
+if os == "windows" then
+  typeln it is Windows
+elif os == "linux" then
+  typeln it is Linux
+fi
+```
+
+Like the LED reads, `host_os` needs `--hid` and errors in a dry run. The first read does the probe;
+the result is remembered, so reading it again is free and does not toggle the keys a second time.
+
 In a dry run (no `--hid`), every pause is shown so you can see the timing: an explicit `sleep` prints
 `[sleep 400ms]` and a `delay` gap prints `[delay 50ms]`, right where they happen in the output.
 

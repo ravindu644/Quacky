@@ -83,6 +83,7 @@ static TokKind keyword_kind(const char *s, int len) {
       {"capslock_on", T_CAPSLOCK_ON},
       {"numlock_on", T_NUMLOCK_ON},
       {"scrolllock_on", T_SCROLLLOCK_ON},
+      {"host_os", T_HOST_OS},
   };
   for (size_t i = 0; i < sizeof kws / sizeof kws[0]; i++) {
     if (strlen(kws[i].kw) == (size_t)len &&
@@ -439,6 +440,8 @@ const char *tok_kind_name(TokKind k) {
     return "T_NUMLOCK_ON";
   case T_SCROLLLOCK_ON:
     return "T_SCROLLLOCK_ON";
+  case T_HOST_OS:
+    return "T_HOST_OS";
   case T_LPAREN:
     return "T_LPAREN";
   case T_RPAREN:

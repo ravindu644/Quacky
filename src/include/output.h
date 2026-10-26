@@ -36,6 +36,9 @@ typedef struct {
   uint8_t led_state; /* last LED bitmap the host sent (bit 0 Num, 1 Caps, 2
                         Scroll); the host only sends on a change, so this caches
                         it between reads */
+  const char *os_name; /* cached host_os result (a static literal), NULL until a
+                          definite detection; probing toggles keys, so we do it
+                          once (like DuckyScript's $_OS) */
   char errbuf[128];  /* holds a formatted message so a returned *err stays valid
                       */
   bool write_failed; /* set when an output write fails. Such a failure is
@@ -91,6 +94,14 @@ int64_t out_ultra(const Output *o);
    a runtime error at the reading expression. Drains any pending reports first,
    so *val is the current state even though the host only sends on a change. */
 Status out_led(Output *o, int bit, bool *val, const char **err);
+/* Detect the host OS by toggling lock keys and seeing which LEDs it reflects
+   (NumLock ignored -> macOS; ScrollLock reflected -> Windows, else Linux; no
+   CapsLock echo at all -> "unknown"). *name gets a static string
+   ("windows"/"linux"/"macos"/"unknown"), never freed. The first definite
+   result is cached, so repeated reads do not re-toggle the keys. Fails like
+   out_led in a dry run or on a write-only node, and propagates a write error.
+ */
+Status out_detect_os(Output *o, const char **name, const char **err);
 /* The evaluator calls this once at the start of each output statement; it
    pauses default_delay before every action but the first (the gap between
    keystrokes), so it never pads the start or end of a script. */

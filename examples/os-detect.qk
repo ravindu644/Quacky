@@ -1,5 +1,11 @@
 # Detect the host OS from how it reflects the keyboard lock-key LEDs, then type
-# the answer. This needs a real host, so run it for real, not as a dry run:
+# the answer.
+#
+# For real use, prefer the built-in `host_os` keyword: it does this same probe
+# in C, faster (`typeln Detected OS: ${host_os}`). This script is the worked-out
+# version of what host_os does, kept as an example of the lock-key LED reads.
+#
+# This needs a real host, so run it for real, not as a dry run:
 #
 #   quacky --hid /dev/hidg0 examples/os-detect.qk
 #

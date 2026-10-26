@@ -65,6 +65,13 @@ QStr *str_concat(const QStr *a, const QStr *b) {
   return s;
 }
 
+QStr *qstr_dup(const char *s) {
+  size_t n = strlen(s);
+  QStr *q = qstr_alloc(n);
+  memcpy(q->data, s, n);
+  return q;
+}
+
 Status int_op(TokKind op, int64_t a, int64_t b, int64_t *out,
               const char **err) {
   switch (op) {

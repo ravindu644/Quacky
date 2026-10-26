@@ -1,0 +1,4 @@
+1
+cases/errors/host_os_dryrun.qk:3:6: error: cannot detect the host OS in a dry run (use --hid)
+  os = host_os
+       ^

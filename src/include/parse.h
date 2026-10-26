@@ -75,7 +75,8 @@ typedef struct Expr {
       struct Expr *a, *b;
     } bin; /* E_UNARY (a only), E_BINARY, E_AND, E_OR; E_SETTING uses op alone
               to tag which setting (T_DELAY/T_KEYDELAY/T_FASTMODE/T_ULTRAMODE,
-              or a host-LED read T_CAPSLOCK_ON/T_NUMLOCK_ON/T_SCROLLLOCK_ON) */
+              a host-LED read T_CAPSLOCK_ON/T_NUMLOCK_ON/T_SCROLLLOCK_ON, or
+              T_HOST_OS) */
     struct {
       Str name;
       struct Expr **args;
