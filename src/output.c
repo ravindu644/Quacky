@@ -482,3 +482,12 @@ void out_set_tick(Output *o, int64_t ms) { o->tick_ns = ms * 1000000; }
    ultra still wins over fast in out_type. */
 void out_set_fast(Output *o, bool on) { o->fast = on; }
 void out_set_ultra(Output *o, bool on) { o->ultra = on; }
+
+/* Read the live settings back so a script can snapshot and restore them (the
+   mirror of the statements above). tick is stored as ns but only ever set as a
+   whole number of ms, so the division is exact; the modes report 0/1 to match
+   how they are written. */
+int64_t out_delay_ms(const Output *o) { return o->default_delay; }
+int64_t out_tick_ms(const Output *o) { return o->tick_ns / 1000000; }
+int64_t out_fast(const Output *o) { return o->fast ? 1 : 0; }
+int64_t out_ultra(const Output *o) { return o->ultra ? 1 : 0; }

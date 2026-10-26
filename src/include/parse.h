@@ -58,7 +58,8 @@ typedef enum {
   E_BINARY,
   E_AND,
   E_OR,
-  E_CALL
+  E_CALL,
+  E_SETTING /* reads a live output setting; which one is in bin.op */
 } ExprKind;
 
 typedef struct Expr {
@@ -72,7 +73,9 @@ typedef struct Expr {
     struct {
       TokKind op;
       struct Expr *a, *b;
-    } bin; /* E_UNARY (a only), E_BINARY, E_AND, E_OR */
+    } bin; /* E_UNARY (a only), E_BINARY, E_AND, E_OR; E_SETTING uses op alone
+              to tag which setting (T_DELAY/T_KEYDELAY/T_FASTMODE/T_ULTRAMODE)
+            */
     struct {
       Str name;
       struct Expr **args;

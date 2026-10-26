@@ -1,0 +1,25 @@
+# Settings are readable in expression position (the mirror of the setter
+# statements): `x = keydelay` reads what `keydelay N` set. This is what lets a
+# function snapshot and restore the caller's settings instead of guessing them.
+
+# Each setting reads back the value just written.
+delay 7
+keydelay 50
+fastmode 1
+ultramode 1
+type "delay=${delay} keydelay=${keydelay} fast=${fastmode} ultra=${ultramode}\n"
+
+# The real point: a helper that saves and restores must not clobber the caller.
+func fast_type str
+  prev_delay = keydelay
+  prev_fast = fastmode
+  keydelay 0 ; fastmode 1
+  type $str
+  keydelay prev_delay
+  fastmode prev_fast
+end
+
+keydelay 99
+fastmode 0
+fast_type("x")
+type " after keydelay=${keydelay} fast=${fastmode}\n"

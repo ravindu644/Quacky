@@ -1,0 +1,5 @@
+"delay=7 keydelay=50 fast=1 ultra=1
+"[delay 7ms]
+x[delay 7ms]
+" after keydelay=99 fast=0
+"

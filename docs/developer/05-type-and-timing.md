@@ -232,6 +232,28 @@ void out_action_gap(Output *o);                         // the evaluator calls t
 mid-run. `wait_tick` reads it per key event, so the new value takes effect from the next key; changing
 it never disturbs the running deadline (05 §5).
 
+### 6.1 Reading the settings back
+
+The four settings (`delay`, `keydelay`, `fastmode`, `ultramode`) are also readable: the bare keyword
+in expression position evaluates to the current value (02 §4.2, `E_SETTING`). This is what lets a
+function snapshot and restore the caller's state instead of hardcoding the defaults.
+
+```c
+int64_t out_delay_ms(const Output *o);   // o->default_delay
+int64_t out_tick_ms(const Output *o);    // o->tick_ns / 1000000, back to ms
+int64_t out_fast(const Output *o);       // 0 or 1
+int64_t out_ultra(const Output *o);      // 0 or 1
+```
+
+Two decisions worth keeping. **Symmetric keyword, not a namespace.** We set with `keydelay N` and
+read with bare `keydelay`, one word both ways. A `quacky.keydelay`-style member syntax was rejected:
+the language has no objects or `.` anywhere, so introducing member access for four read-only values
+is machinery the problem does not need, and it would be asymmetric with the setter. **Read as int.**
+All four return an int (the modes as 0/1), matching how they are written (`fastmode 1`), so a value
+round-trips straight back into the setter with no new `bool` path and no change to `eval_count`.
+`tick_ns` is only ever set as `ms * 1000000`, so `out_tick_ms` divides back exactly. `sleep` is a
+one-shot action with no stored value, so it is not readable.
+
 `out_sleep_ms` shares the clock so the script's `sleep` and the key cadence agree:
 
 ```c

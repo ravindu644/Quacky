@@ -435,6 +435,25 @@ static Status eval_expr(Interp *I, Expr *e, Value *out) {
     return eval_logical(I, e, out);
   case E_CALL:
     return eval_call(I, e, out);
+  case E_SETTING: {
+    int64_t v;
+    switch (e->bin.op) {
+    case T_DELAY:
+      v = out_delay_ms(I->out);
+      break;
+    case T_KEYDELAY:
+      v = out_tick_ms(I->out);
+      break;
+    case T_FASTMODE:
+      v = out_fast(I->out);
+      break;
+    default: /* T_ULTRAMODE */
+      v = out_ultra(I->out);
+      break;
+    }
+    *out = (Value){VAL_INT, .i = v};
+    return ST_OK;
+  }
   }
   assert(0 && "unknown expr kind");
   return ST_ERR;

@@ -292,6 +292,7 @@ static Expr *parse_precedence(Parser *p, Prec prec);
 static Expr *pf_literal(Parser *p);
 static Expr *pf_variable(Parser *p);
 static Expr *pf_grouping(Parser *p);
+static Expr *pf_setting(Parser *p);
 static Expr *pf_unary(Parser *p);
 static Expr *in_binary(Parser *p, Expr *left);
 static Expr *in_and(Parser *p, Expr *left);
@@ -325,6 +326,13 @@ static const ParseRule rules[T_ERROR + 1] = {
     [T_TRUE] = {pf_literal, NULL, P_NONE},
     [T_FALSE] = {pf_literal, NULL, P_NONE},
     [T_IDENT] = {pf_variable, NULL, P_NONE},
+    /* The same keyword that sets a setting as a statement reads it here, in
+       expression position; the statement dispatcher claims these tokens at the
+       start of a line first (parse_statement), so there is no clash. */
+    [T_DELAY] = {pf_setting, NULL, P_NONE},
+    [T_KEYDELAY] = {pf_setting, NULL, P_NONE},
+    [T_FASTMODE] = {pf_setting, NULL, P_NONE},
+    [T_ULTRAMODE] = {pf_setting, NULL, P_NONE},
     [T_LPAREN] = {pf_grouping, NULL, P_NONE},
     [T_MINUS] = {pf_unary, in_binary, P_TERM},
     [T_BANG] = {pf_unary, NULL, P_NONE},
@@ -428,6 +436,13 @@ static Expr *pf_variable(Parser *p) {
     return finish_call(p, t);
   Expr *e = mk_expr(p, E_VAR, t);
   e->name = tok_str(t);
+  return e;
+}
+static Expr *pf_setting(Parser *p) {
+  Token t = p->cur; /* T_DELAY | T_KEYDELAY | T_FASTMODE | T_ULTRAMODE */
+  p_advance(p);
+  Expr *e = mk_expr(p, E_SETTING, t);
+  e->bin.op = t.kind;
   return e;
 }
 static Expr *pf_grouping(Parser *p) {

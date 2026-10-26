@@ -75,6 +75,7 @@ Status eval_expr(Interp *I, Expr *e, Value *out);
 | `E_BINARY` | eval both, dispatch on `op` with the type matrix from spec §3. Int arithmetic goes through `int_op()` (04 §4) so every UB case is handled in one place |
 | `E_AND/E_OR` | eval left; must be bool; short-circuit; eval right; must be bool |
 | `E_CALL` | see §5 |
+| `E_SETTING` | read a live output setting (`delay`/`keydelay`/`fastmode`/`ultramode`, tagged in `bin.op`) back as an int through the `out_*` getters; the mirror of the setter statements (05 §6) |
 
 Type errors carry both the expected and the actual type name:
 `"operator '+' expects int and int, got str and bool"`.

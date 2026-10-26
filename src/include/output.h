@@ -73,6 +73,12 @@ void out_set_tick(Output *o, int64_t ms);
    --ultra. HID-only; ultra still wins over fast in out_type. */
 void out_set_fast(Output *o, bool on);
 void out_set_ultra(Output *o, bool on);
+/* Read the four settings back (the mirror of the setters above), so a script
+   can snapshot and restore them. tick is returned in ms; the modes as 0/1. */
+int64_t out_delay_ms(const Output *o);
+int64_t out_tick_ms(const Output *o);
+int64_t out_fast(const Output *o);
+int64_t out_ultra(const Output *o);
 /* The evaluator calls this once at the start of each output statement; it
    pauses default_delay before every action but the first (the gap between
    keystrokes), so it never pads the start or end of a script. */

@@ -129,10 +129,15 @@ Rows that matter:
 | `&&` | — | and_ (short-circuit node) | P_AND |
 | `\|\|` | — | or_ | P_OR |
 | INT STRING TRUE FALSE IDENT | literal / variable | — | — |
-| every keyword, `)` `,` `..` NEWLINE `;` | — | — | P_NONE |
+| `delay` `keydelay` `fastmode` `ultramode` | setting (reads the live value) | — | P_NONE |
+| every other keyword, `)` `,` `..` NEWLINE `;` | — | — | P_NONE |
 
 Because block keywords have `P_NONE`, `parse_expr()` stops in front of `then`/`do` with no
-special casing. The parser does not need to know it is inside a condition.
+special casing. The parser does not need to know it is inside a condition. The four setting
+keywords are the exception: they carry a prefix rule so `x = keydelay` reads the current value
+(the mirror of the setter statement). That is safe because `parse_statement` claims those
+tokens at the start of a line before any expression parsing, so the prefix rule only fires when
+the keyword sits where an operand is expected.
 
 `&&` / `||` are their own AST nodes (not generic binary ops) so the evaluator can
 short-circuit. Call arguments are parsed with `parse_expr` separated by `,` up to `)`.
@@ -193,7 +198,7 @@ parse_chord:
 Tagged structs, allocated from the arena, children by pointer. Keep it to two node families:
 
 ```c
-typedef enum { E_INT, E_BOOL, E_STR, E_VAR, E_UNARY, E_BINARY, E_AND, E_OR, E_CALL } ExprKind;
+typedef enum { E_INT, E_BOOL, E_STR, E_VAR, E_UNARY, E_BINARY, E_AND, E_OR, E_CALL, E_SETTING } ExprKind;
 typedef struct Expr {
     ExprKind kind; int line, col;
     union {

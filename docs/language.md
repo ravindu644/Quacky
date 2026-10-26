@@ -277,6 +277,27 @@ repeat 5             # press Down six times in total
 `repeat` only follows an action. Put it right after the thing you want repeated; any other statement
 in between clears it.
 
+### Reading a setting back
+
+`delay`, `keydelay`, `fastmode` and `ultramode` also read their current value when you use the bare
+keyword in an expression: `prev = keydelay` gives you whatever `keydelay` was last set to (an int;
+the modes read back `1` or `0`). Set with `keydelay 0`, read with `keydelay`, same word both ways.
+This lets a function save the caller's settings, change them, and put them back exactly, instead of
+assuming the defaults:
+
+```
+func fast_type str
+  prev_delay = keydelay        # save what the caller had
+  prev_fast = fastmode
+  keydelay 0 ; fastmode 1
+  type $str
+  keydelay prev_delay          # and restore it, whatever it was
+  fastmode prev_fast
+end
+```
+
+(`sleep` and `repeat` are one-shot actions with no stored value, so they are not readable.)
+
 In a dry run (no `--hid`), every pause is shown so you can see the timing: an explicit `sleep` prints
 `[sleep 400ms]` and a `delay` gap prints `[delay 50ms]`, right where they happen in the output.
 
