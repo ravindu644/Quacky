@@ -31,8 +31,12 @@ interpreters work.
 ```
 if then elif else fi while do done for in func end return break continue
 const true false sleep type typeln type_file typeln_file import hold release delay keydelay
-fastmode ultramode repeat
+fastmode ultramode repeat capslock_on numlock_on scrolllock_on host_os
 ```
+
+The last four are read-only: `capslock_on`/`numlock_on`/`scrolllock_on` evaluate to a `bool` for the
+host's live lock-key LEDs, and `host_os` to a string naming the detected OS. They work only under
+`--hid` (a dry run has no host) and are covered in [../language.md](../language.md).
 
 ### Key names (contextual, not reserved)
 

@@ -129,7 +129,7 @@ Rows that matter:
 | `&&` | — | and_ (short-circuit node) | P_AND |
 | `\|\|` | — | or_ | P_OR |
 | INT STRING TRUE FALSE IDENT | literal / variable | — | — |
-| `delay` `keydelay` `fastmode` `ultramode` | setting (reads the live value) | — | P_NONE |
+| `delay` `keydelay` `fastmode` `ultramode` `capslock_on` `numlock_on` `scrolllock_on` `host_os` | setting (reads the live value; the last four read the host) | — | P_NONE |
 | every other keyword, `)` `,` `..` NEWLINE `;` | — | — | P_NONE |
 
 Because block keywords have `P_NONE`, `parse_expr()` stops in front of `then`/`do` with no

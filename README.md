@@ -37,6 +37,8 @@ only speaks keyboard.
   variables and `const`; string interpolation inside typed text.
 - **Keyboard control, not just text.** Chords like `ctrl + alt + delete`, keys held down across
   lines, repeats, and adjustable pacing.
+- **Read the host back.** `capslock_on` / `numlock_on` / `scrolllock_on` report the host's lock-key
+  LEDs, and `host_os` detects Windows, macOS or Linux, so a script can branch on the live machine.
 - **Type a whole file.** `type_file "notes.txt"` types a document verbatim, no escaping; a literal
   path is validated by `--check` before anything types.
 - **Portable and dependency-free.** Static musl binaries for x86_64, i686, aarch64, armhf and
