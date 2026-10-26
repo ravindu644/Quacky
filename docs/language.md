@@ -18,13 +18,21 @@ the full list of key names you can press.
 
 - [Comments](#comments)
 - [Values and variables](#values-and-variables)
+  - [Strings](#strings)
 - [Operators](#operators)
-- [Typing text](#typing-text-type-and-typeln)
-- [Pressing keys](#pressing-keys-chords)
+- [Typing text: `type` and `typeln`](#typing-text-type-and-typeln)
+  - [Interpolation](#interpolation)
+  - [Escapes](#escapes)
+  - [Typing a file](#typing-a-file)
+- [Pressing keys: chords](#pressing-keys-chords)
 - [Holding keys down](#holding-keys-down)
-- [Timing: delay, sleep, repeat](#timing-delay-sleep-repeat)
-- [Conditions](#conditions-if-elif-else)
-- [Loops](#loops-while-and-for)
+- [Timing and speed](#timing-and-speed)
+  - [Reading a setting back](#reading-a-setting-back)
+- [Reading the host](#reading-the-host)
+  - [Lock-key LEDs](#lock-key-leds)
+  - [Detecting the OS](#detecting-the-os)
+- [Conditions: if, elif, else](#conditions-if-elif-else)
+- [Loops: while and for](#loops-while-and-for)
 - [Functions](#functions)
 - [Modules: import](#modules-import)
 - [Things that will trip you up](#things-that-will-trip-you-up)
@@ -245,7 +253,7 @@ release all
 
 Releasing a key that is not held is an error, so a script cannot accidentally leave a key stuck.
 
-## Timing: delay, sleep, repeat
+## Timing and speed
 
 - **`delay MS`** sets a default pause inserted *between* the keystrokes a script sends (a chord,
   `type`/`typeln`, `hold`/`release`), never before the first or after the last, and never on plain
@@ -277,6 +285,9 @@ repeat 5             # press Down six times in total
 `repeat` only follows an action. Put it right after the thing you want repeated; any other statement
 in between clears it.
 
+In a dry run (no `--hid`), every pause is shown so you can see the timing: an explicit `sleep` prints
+`[sleep 400ms]` and a `delay` gap prints `[delay 50ms]`, right where they happen in the output.
+
 ### Reading a setting back
 
 `delay`, `keydelay`, `fastmode` and `ultramode` also read their current value when you use the bare
@@ -298,7 +309,12 @@ end
 
 (`sleep` and `repeat` are one-shot actions with no stored value, so they are not readable.)
 
-### Reading the host's lock-key LEDs
+## Reading the host
+
+Most of a script talks to the host. A few keywords listen back, reading state the host reports over
+USB: the lock-key LEDs, and the OS those LEDs reveal.
+
+### Lock-key LEDs
 
 `capslock_on`, `numlock_on` and `scrolllock_on` read back as a `bool` whether the host currently has
 that lock LED lit. They are the live state the host reports, not a setting you wrote. Mind the `_on`:
@@ -316,7 +332,7 @@ These need a real host, so they only work under `--hid`; in a dry run there is n
 the script stops with an error. See [`examples/os-detect.qk`](../examples/os-detect.qk), which uses
 them to tell Windows, macOS and Linux apart.
 
-### Detecting the host OS
+### Detecting the OS
 
 `host_os` does that detection for you and reads back as a string: `"windows"`, `"linux"`, `"macos"`,
 or `"unknown"`. It works by briefly toggling the lock keys and seeing which LEDs the host reflects
@@ -335,10 +351,7 @@ fi
 Like the LED reads, `host_os` needs `--hid` and errors in a dry run. The first read does the probe;
 the result is remembered, so reading it again is free and does not toggle the keys a second time.
 
-In a dry run (no `--hid`), every pause is shown so you can see the timing: an explicit `sleep` prints
-`[sleep 400ms]` and a `delay` gap prints `[delay 50ms]`, right where they happen in the output.
-
-## Conditions: if / elif / else
+## Conditions: if, elif, else
 
 A condition must be a bool. There is no "truthiness", so compare explicitly (`if n != 0`, not
 `if n`). Close every `if` with `fi`. The body may sit on the same line after `then`.
