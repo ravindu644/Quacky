@@ -77,6 +77,32 @@ projects changed, so treat them as a starting point, not an exact address.
 | `PRId64` is `"l"` on 64-bit, `"ll"` on 32-bit | `include/inttypes.h:25-31` |
 | 32-bit arches use the time64 syscall | `arch/i386/bits/syscall.h.in:401`, `arch/arm/bits/syscall.h.in:364` |
 
+### hid_gadget_test — github.com/aagallag/hid_gadget_test
+The kernel's HID-gadget test tool, the model for reading the host's LED output report back from the
+same `/dev/hidgN` node (the `capslock_on` / `numlock_on` / `scrolllock_on` reads).
+| What we took | Where |
+|---|---|
+| Open the node `O_RDWR`, not write-only, so the device is readable | `hid_gadget_test.c:264` |
+| `select()`/`poll()` the fd, then `read()` the host's output report | `hid_gadget_test.c:271-291` |
+
+### flipper_suite — github.com/barkandbite/flipper_suite
+`flipperpwn/os_detect.c`, the model for `host_os`: tell the OS apart by which lock-key LEDs the host
+reflects, waiting for the echo rather than a fixed pause.
+| What we took | Where |
+|---|---|
+| Toggle a lock key, wait for the host to echo the LED change, with a timeout | `flipperpwn/os_detect.c:24-50` |
+| The heuristic: no NumLock echo -> macOS; ScrollLock echo -> Windows, else Linux; no CapsLock echo -> inactive | `flipperpwn/os_detect.c:82-131` |
+| Fixed 1500 ms poll timeout (we calibrate from the measured CapsLock echo instead) | `flipperpwn/os_detect.c:14` |
+| CDC-serial fallback (**not** taken: Quacky is keyboard-only) | `flipperpwn/os_detect.c:210-454` |
+
+### SparkType — github.com/Yyax13/SparkType
+`src/infra/OS/main.cpp`, a second take on the same LED-reflection idea that confirmed the macOS
+discriminator.
+| What we took | Where |
+|---|---|
+| macOS told apart by no LED reply to a lock-key toggle | `src/infra/OS/main.cpp:11-40` |
+| Win-vs-Linux by counting USB host-config requests (**not** taken: not visible through `/dev/hidgN`; we use flipper's ScrollLock test) | `src/infra/OS/main.cpp:25-31` |
+
 ## Read online, not cloned
 - **wren** `src/vm/wren_compiler.c`, `readString` / `TOKEN_INTERPOLATION`, `MAX_INTERPOLATION_NESTING 8`, paren counting in `nextToken`: the model for `${expr}` interpolation. https://github.com/wren-lang/wren/blob/main/src/vm/wren_compiler.c
 

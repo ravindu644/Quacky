@@ -596,6 +596,8 @@ static bool key_is_reflected(Output *o, uint8_t usage, int64_t timeout_ms,
   return wait_led_report(o, timeout_ms);
 }
 
+/* The LED-reflection heuristic is borrowed from flipper_suite's
+   flipperpwn/os_detect.c and SparkType; see docs/developer/09-references.md. */
 Status out_detect_os(Output *o, const char **name, const char **err) {
   if (o->os_name) { /* detected once already; do not re-toggle the keys */
     *name = o->os_name;
