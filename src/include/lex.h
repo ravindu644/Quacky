@@ -46,6 +46,8 @@ typedef enum {
   T_FASTMODE,
   T_ULTRAMODE,
   T_REPEAT,
+  T_ECHO, /* print a line (with $-interpolation) to stderr, never to the host */
+  T_EXIT, /* stop the whole run cleanly, with an optional exit code */
   /* read-only host-LED reads: the live lock-key LED state the host sends back.
      Named with the `_on` suffix so the plain key names capslock/numlock/
      scrolllock stay free to press the keys (keys.c). */

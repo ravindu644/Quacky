@@ -37,6 +37,9 @@ only speaks keyboard.
   variables and `const`; string interpolation inside typed text.
 - **Keyboard control, not just text.** Chords like `ctrl + alt + delete`, keys held down across
   lines, repeats, and adjustable pacing.
+- **Stay in control of the run.** `echo` prints progress to your terminal (never to the host), a
+  real run mirrors its keystrokes to the terminal live, and `exit` stops a script cleanly when a
+  branch decides it should not go on.
 - **Read the host back.** `capslock_on` / `numlock_on` / `scrolllock_on` report the host's lock-key
   LEDs, and `host_os` detects Windows, macOS or Linux, so a script can branch on the live machine.
 - **Type a whole file.** `type_file "notes.txt"` types a document verbatim, no escaping; a literal
@@ -60,6 +63,8 @@ typeln Hello from Quacky!
 - **Chords** are keys joined with `+` and pressed together: `enter`, `ctrl + c`, `super + r`.
 - **`hold` / `release`** keep keys down across later lines; **`delay`** sets a default pause,
   **`sleep`** pauses once, **`repeat N`** re-runs the previous action.
+- **`echo`** prints a message to your terminal (not the host), and **`exit`** stops the run, so a
+  helper can report and bail instead of typing into the wrong place.
 
 A full tour is in [docs/language.md](docs/language.md).
 

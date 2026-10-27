@@ -104,7 +104,9 @@ typedef enum {
   S_KEYDELAY,
   S_FASTMODE,
   S_ULTRAMODE,
-  S_REPEAT
+  S_REPEAT,
+  S_ECHO, /* reuses the `type` segs: an interpolated line printed to stderr */
+  S_EXIT  /* reuses `expr` (nullable) for the optional exit code */
 } StmtKind;
 
 /* A chord resolved at parse time: modifier bits plus up to six key usages.
@@ -151,12 +153,13 @@ typedef struct Stmt {
       struct Stmt *step;
     } loop; /* S_WHILE; step: a desugared for's `v = v + 1`, runs after the body
                even on continue, else NULL */
-    Expr *expr; /* S_RETURN (nullable), S_SLEEP, S_DELAY, S_REPEAT, S_CALL */
+    Expr *expr; /* S_RETURN (nullable), S_SLEEP, S_DELAY, S_REPEAT, S_CALL,
+                   S_EXIT (nullable) */
     struct {
       Seg *segs;
       int nsegs;
       bool stop_output;
-    } type; /* S_TYPE */
+    } type; /* S_TYPE, S_ECHO */
     /* S_TYPE_FILE: a literal path is read and validated at parse time
        (bytes/len set, path NULL); a computed path is read at run time (path
        set, bytes NULL). */

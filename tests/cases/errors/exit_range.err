@@ -1,0 +1,4 @@
+1
+cases/errors/exit_range.qk:1:1: error: exit code must be 0..255
+  exit 999
+  ^

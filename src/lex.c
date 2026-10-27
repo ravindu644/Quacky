@@ -80,6 +80,8 @@ static TokKind keyword_kind(const char *s, int len) {
       {"fastmode", T_FASTMODE},
       {"ultramode", T_ULTRAMODE},
       {"repeat", T_REPEAT},
+      {"echo", T_ECHO},
+      {"exit", T_EXIT},
       {"capslock_on", T_CAPSLOCK_ON},
       {"numlock_on", T_NUMLOCK_ON},
       {"scrolllock_on", T_SCROLLLOCK_ON},
@@ -434,6 +436,10 @@ const char *tok_kind_name(TokKind k) {
     return "T_ULTRAMODE";
   case T_REPEAT:
     return "T_REPEAT";
+  case T_ECHO:
+    return "T_ECHO";
+  case T_EXIT:
+    return "T_EXIT";
   case T_CAPSLOCK_ON:
     return "T_CAPSLOCK_ON";
   case T_NUMLOCK_ON:

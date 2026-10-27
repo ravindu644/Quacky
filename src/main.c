@@ -27,6 +27,7 @@ static const char USAGE[] =
     "throughput\n"
     "  --ultra           pack a run of distinct keys per report, up to ~6x on "
     "such runs\n"
+    "  --quiet           with --hid, do not mirror the keystrokes to stderr\n"
     "  --version         show the version and build date\n"
     "  --help            show this message\n";
 
@@ -77,7 +78,7 @@ static _Noreturn void usage_error(const char *msg) {
 
 int main(int argc, char **argv) {
   const char *script = NULL, *hid_dev = NULL, *out_file = NULL;
-  bool check = false, fast = false, ultra = false;
+  bool check = false, fast = false, ultra = false, quiet = false;
   int64_t tick_ms =
       5; /* fast but safe: above the ~1 ms USB poll, margin for slow targets */
 
@@ -97,6 +98,8 @@ int main(int argc, char **argv) {
       fast = true;
     else if (strcmp(a, "--ultra") == 0)
       ultra = true;
+    else if (strcmp(a, "--quiet") == 0)
+      quiet = true;
     else if (strcmp(a, "--hid") == 0) {
       if (++i >= argc)
         usage_error("--hid needs a device");
@@ -153,6 +156,7 @@ int main(int argc, char **argv) {
   }
   out.fast = fast;   /* rollover typing; only affects the HID backend */
   out.ultra = ultra; /* frame packing; takes precedence over --fast on HID */
+  out.quiet = quiet; /* silence the live --hid mirror; `echo` still prints */
 
   Interp I;
   memset(&I, 0, sizeof I);
@@ -161,9 +165,15 @@ int main(int argc, char **argv) {
   Status s = run(&I, prog);
 
   int code = 0;
+  /* Close any partial line the live mirror or an `echo \c` left on stderr, so a
+     diagnostic, or the shell prompt after a clean run, starts on its own line.
+   */
+  out_newline_guard(&out);
   if (s == ST_ERR) {
     print_diagnostic(script, src, I.err_line, I.err_col, I.err);
     code = 1;
+  } else if (s == ST_EXIT) {
+    code = I.exit_code; /* a script `exit`: clean stop, no diagnostic */
   }
   out_close(&out);
   arena_free(&arena);

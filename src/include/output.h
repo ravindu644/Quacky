@@ -45,6 +45,15 @@ typedef struct {
                         environmental (unplugged cable, host not configured,
                         broken pipe, full disk), never a fault in the script, so
                         eval reports it without a source caret. */
+  bool quiet;       /* --quiet: suppress the live keystroke mirror in --hid mode
+                       (`echo` still prints) */
+  bool tbol;        /* transcript stream (o->fd) is at the start of a line, so a
+                       marker like [delay 300ms] knows whether to open with a \n */
+  bool sbol;        /* same, for stderr: the live mirror and `echo` share it */
+  bool s_echo_open; /* stderr's current partial line was left by an `echo \c`,
+                       so the next echo continues it instead of breaking to a
+                       fresh line (a partial line left by the mirror does
+                       break) */
 } Output;
 
 /* Open the backend once at startup, before any statement runs, so a bad path or
@@ -106,6 +115,19 @@ Status out_detect_os(Output *o, const char **name, const char **err);
    pauses default_delay before every action but the first (the gap between
    keystrokes), so it never pads the start or end of a script. */
 void out_action_gap(Output *o);
+
+/* `echo`: print operator-facing text to stderr in every mode, so it shows on
+   the terminal without ever reaching the host and without touching the
+   transcript on stdout/-o or the HID report stream. Best effort: a closed
+   stderr is dropped, never a reason to fail a real run. Call out_echo_begin
+   once per echo statement (it moves to a fresh line if needed), then out_echo
+   for each text or interpolated segment; the trailing newline is in the last
+   segment. */
+void out_echo_begin(Output *o);
+void out_echo(Output *o, const char *bytes, size_t len);
+/* Close any partial stderr line (from the live mirror or `echo \c`) so a
+   following runtime-error diagnostic starts on its own line. */
+void out_newline_guard(Output *o);
 
 /* The largest sleep/delay/tick argument (about 33 minutes). The ns math is done
    in int64_t and split into seconds before it touches tv_nsec, since a 32-bit

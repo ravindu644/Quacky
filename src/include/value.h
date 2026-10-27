@@ -49,7 +49,14 @@ typedef struct {
 /* Status travels up the evaluator's C stack (03 section 1). Its real home is
    the evaluator, but int_op and compare below live in value.c and need it, and
    Phase 4's eval.h includes this header anyway, so it is declared once here. */
-typedef enum { ST_OK, ST_ERR, ST_RETURN, ST_BREAK, ST_CONTINUE } Status;
+typedef enum {
+  ST_OK,
+  ST_ERR,
+  ST_RETURN,
+  ST_BREAK,
+  ST_CONTINUE,
+  ST_EXIT /* `exit`: unwind the whole run to main, which uses I->exit_code */
+} Status;
 
 /* Refcounting (04 section 2). An immortal string (rc < 0) ignores both, so the
    same helpers work whether a value points at an arena literal or a heap

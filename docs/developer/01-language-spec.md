@@ -31,7 +31,7 @@ interpreters work.
 ```
 if then elif else fi while do done for in func end return break continue
 const true false sleep type typeln type_file typeln_file import hold release delay keydelay
-fastmode ultramode repeat capslock_on numlock_on scrolllock_on host_os
+fastmode ultramode repeat echo exit capslock_on numlock_on scrolllock_on host_os
 ```
 
 The last four are read-only: `capslock_on`/`numlock_on`/`scrolllock_on` evaluate to a `bool` for the
@@ -73,6 +73,8 @@ statement   = assignment
             | fastmode_stmt
             | ultramode_stmt
             | repeat_stmt
+            | echo_stmt
+            | exit_stmt
             | call_stmt ;
 
 assignment  = IDENT "=" expr ;
@@ -87,6 +89,8 @@ keydelay_stmt = "keydelay" expr ;                                    (* persiste
 fastmode_stmt = "fastmode" expr ;                                    (* rollover: 0 off, nonzero on (in-script --fast) *)
 ultramode_stmt = "ultramode" expr ;                                  (* frame packing: 0 off, nonzero on (in-script --ultra) *)
 repeat_stmt = "repeat" expr ;                                        (* re-run the previous action expr times *)
+echo_stmt   = "echo" STRING ;                                        (* STRING interpolated like a type line; to stderr, §5.2 *)
+exit_stmt   = "exit" [ expr ] ;                                      (* stop the run; optional code 0..255, default 0 *)
 key         = KEY_NAME | LETTER | DIGIT ;                            (* KEY_NAME from §6.1 *)
 
 if_stmt     = "if" expr "then" block
@@ -195,6 +199,7 @@ error. Shell users write `if n != 0 then`, which is the intended style.
 - `break` / `continue` are legal only inside `while`/`for`; elsewhere a **syntax** error.
 - `return` outside a function is a syntax error.
 - `for v in a..b` iterates `v = a, a+1, …, b` inclusive; if `a > b` the body never runs. The loop variable is a normal variable (persists after the loop). It desugars to `while` in the parser.
+- `exit [expr]` stops the whole run at once (through any function call or loop, and past the caller), with no error diagnostic. The code is `expr` if given (an int 0..255; out of range is a runtime error) else 0; the process ends with that code. It is allowed anywhere, including top level. Internally it is a distinct status (`ST_EXIT`) that unwinds like `ST_ERR` but maps to a clean exit; held keys are still released on the way out. There is no built-in `abort`: `echo` + `exit` is the whole of it.
 
 ### 4.8 `sleep expr`
 `expr` must be an int ≥ 0, milliseconds. Negative → runtime error. Timing is absolute-deadline
@@ -244,6 +249,24 @@ type_file "notes.txt"            (* checked by --check *)
 base = "/tmp"
 typeln_file base + "/notes.txt"  (* checked when it runs; --check warns *)
 ```
+
+### 5.2 The `echo` statement
+
+`echo STRING` prints to **stderr** in every mode, so it reaches the operator's terminal without
+touching the host, the stdout/`-o` transcript, or the HID report stream. Unlike `type` it takes a
+double-quoted string, not a raw line, so the quotes delimit; the string's contents are then run
+through the same `parse_raw_line` machinery as a `type` line, giving the same `$name` / `${ expr }`
+interpolation, the same escapes, and `\c` to drop the trailing newline (otherwise one is appended,
+as for `typeln`). It is not an output action: it neither paces (no `keydelay` tick), owes the
+`delay` gap, nor counts for `repeat`. Writes are best effort, so a closed stderr never fails a run;
+the only error it can raise is a bad interpolated expression.
+
+In a real `--hid` run the keystrokes are also mirrored to stderr as they are sent, so the run reads
+like its own dry-run transcript (markers and all), each on its own line. The mirror is one `write(2)`
+per code point, kept in lock-step with the device so a long `type_file` is watchable rather than
+dumped ahead; that cost is dwarfed by the pacing tick and the host's ~1 ms USB poll, so it does not
+move real throughput. For a flat-out `--ultra` run where even that is unwanted, `--quiet` turns the
+mirror off; `echo` still prints. See 05 for the stream and line-tracking details.
 
 ## 6. Keystrokes and HID output
 

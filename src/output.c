@@ -48,6 +48,62 @@ static Status write_bytes(Output *o, const void *buf, size_t n,
   return ST_OK;
 }
 
+/* The live mirror runs only in --hid mode and only when not silenced: a dry run
+   already writes the transcript to stdout, so there is nothing to mirror. */
+static bool mirror_on(const Output *o) {
+  return o->mode == OUT_HID && !o->quiet;
+}
+
+/* The stderr stream carries the live mirror and `echo`. Best effort by design:
+   a closed or broken stderr must never fail a real HID run, so write errors are
+   dropped and write_failed is left untouched (that flag is for the device and
+   the transcript, which are real faults). `sbol` tracks whether the stream sits
+   at the start of a line, so a marker or an echo can open on a fresh one. */
+static void s_raw(const char *buf, size_t n) {
+  while (n) {
+    ssize_t w = write(STDERR_FILENO, buf, n);
+    if (w < 0) {
+      if (errno == EINTR)
+        continue;
+      return; /* drop it: the mirror is never worth a failed run */
+    }
+    buf += w;
+    n -= (size_t)w;
+  }
+}
+static void s_write(Output *o, const char *buf, size_t n) {
+  if (n == 0)
+    return;
+  s_raw(buf, n);
+  o->sbol = buf[n - 1] == '\n';
+}
+static void s_ensure_bol(Output *o) {
+  if (!o->sbol) {
+    s_raw("\n", 1);
+    o->sbol = true;
+  }
+}
+
+/* The transcript stream (o->fd, stdout or -o FILE) is fallible: a dead reader
+   is a real EPIPE the evaluator reports. These track `tbol` so a marker can
+   open on its own line. */
+static Status t_write(Output *o, const char *buf, size_t n, const char **err) {
+  if (n == 0)
+    return ST_OK;
+  Status s = write_bytes(o, buf, n, err);
+  if (s == ST_OK)
+    o->tbol = buf[n - 1] == '\n';
+  return s;
+}
+static Status t_ensure_bol(Output *o, const char **err) {
+  if (o->tbol)
+    return ST_OK;
+  Status s = write_bytes(o, "\n", 1, err);
+  if (s == ST_OK)
+    o->tbol = true;
+  return s;
+}
+
 /* The clock: a running absolute deadline so wake-up latency never accumulates
    (05 §5). A zero tick disables pacing outright, which is what the tests use.
  */
@@ -87,19 +143,26 @@ static void wait_tick(Output *o) {
     o->next = now;
 }
 
-/* Transcript-only marker so a dry run shows the pauses it would insert. Best
-   effort: a failed write here (a dead pipe) is caught by the next real emit, so
-   pacing keeps its "cannot fail" contract. Nothing is printed for a zero pause
-   or in --hid mode. */
+/* The marker a dry run (and the --hid live mirror) shows for a pause it would
+   insert, on its own line. Best effort: a failed write here (a dead pipe) is
+   caught by the next real emit, so pacing keeps its "cannot fail" contract.
+   Nothing is printed for a zero pause, or under --quiet in --hid mode. */
 static void pause_mark(Output *o, const char *verb, int64_t ms) {
-  if (o->mode != OUT_TRANSCRIPT || ms <= 0)
+  if (ms <= 0)
     return;
-  const char *err = NULL;
   char line[64];
   int n = snprintf(line, sizeof line, "[%s %" PRId64 "ms]\n", verb, ms);
-  if (n > 0)
-    (void)write_bytes(
-        o, line, (size_t)n < sizeof line ? (size_t)n : sizeof line - 1, &err);
+  if (n <= 0)
+    return;
+  size_t len = (size_t)n < sizeof line ? (size_t)n : sizeof line - 1;
+  if (o->mode == OUT_TRANSCRIPT) {
+    const char *err = NULL;
+    if (t_ensure_bol(o, &err) == ST_OK)
+      (void)t_write(o, line, len, &err);
+  } else if (mirror_on(o)) {
+    s_ensure_bol(o);
+    s_write(o, line, len);
+  }
 }
 
 /* The raw absolute-deadline pause (05 §5). Clearing `started` makes the next
@@ -131,11 +194,34 @@ void out_action_gap(Output *o) {
   o->seen_action = true;
 }
 
+/* `echo` goes to stderr in every mode (so it shows on the terminal without
+   touching the host, the stdout/-o transcript, or the HID reports), and even
+   under --quiet. out_echo_begin moves to a fresh line once per statement; the
+   per-segment out_echo calls that follow must not, or an interpolated value
+   would land on its own line. The trailing newline rides in the last segment,
+   exactly as for `type`. */
+void out_echo_begin(Output *o) {
+  if (!o->s_echo_open) /* a prior `echo \c` is continued; a mirror partial is
+                          not */
+    s_ensure_bol(o);
+}
+void out_echo(Output *o, const char *bytes, size_t len) {
+  s_write(o, bytes, len);
+  o->s_echo_open = !o->sbol; /* set when this echo ended with \c (no newline) */
+}
+
+/* Before a runtime-error diagnostic (also on stderr) prints, close any partial
+   line the live mirror or an `echo \c` left open, so the diagnostic starts
+   clean. A no-op when already at the start of a line. */
+void out_newline_guard(Output *o) { s_ensure_bol(o); }
+
 bool out_open(Output *o, OutMode mode, const char *path, int64_t tick_ms) {
   signal(SIGPIPE, SIG_IGN); /* a dead transcript reader becomes EPIPE, handled
                                as a runtime error */
   memset(o, 0, sizeof *o);
   o->mode = mode;
+  o->tbol = true; /* both human streams start at the beginning of a line */
+  o->sbol = true;
   if (tick_ms < 0)
     tick_ms = 0;
   if (tick_ms > OUT_MS_MAX)
@@ -203,18 +289,36 @@ write_held(Output *o,
   return write_report(o, 0, NULL, 0, err);
 }
 
-static Status tag(Output *o, const char *verb, const Str *text,
-                  const char **err) {
+/* Format an action marker like [ctrl + c] or [hold shift] into line. */
+static int fmt_tag(char *line, size_t cap, const char *verb, const Str *text) {
+  return text ? snprintf(line, cap, "[%s%.*s]\n", verb, (int)text->len, text->p)
+              : snprintf(line, cap, "[%s]\n", verb);
+}
+/* Emit an action marker to whichever human stream is live: the transcript
+   (fallible) in a dry run, or the stderr mirror (best effort) in --hid mode,
+   each on its own line. Under --quiet in --hid mode nothing is emitted. Returns
+   the transcript write status so a dead reader is reported; the mirror cannot
+   fail. */
+static Status emit_marker(Output *o, const char *verb, const Str *text,
+                          const char **err) {
   char line[256];
-  int n = text ? snprintf(line, sizeof line, "[%s%.*s]\n", verb, (int)text->len,
-                          text->p)
-               : snprintf(line, sizeof line, "[%s]\n", verb);
+  int n = fmt_tag(line, sizeof line, verb, text);
   if (n < 0) {
     *err = "output error: formatting";
     return ST_ERR;
   }
   size_t len = (size_t)n < sizeof line ? (size_t)n : sizeof line - 1;
-  return write_bytes(o, line, len, err);
+  if (o->mode == OUT_TRANSCRIPT) {
+    Status s = t_ensure_bol(o, err);
+    if (s != ST_OK)
+      return s;
+    return t_write(o, line, len, err);
+  }
+  if (mirror_on(o)) {
+    s_ensure_bol(o);
+    s_write(o, line, len);
+  }
+  return ST_OK;
 }
 
 /* Decode one UTF-8 scalar at bytes[i] (i < len). Returns the byte length
@@ -305,6 +409,11 @@ static Status out_type_ultra(Output *o, const char *bytes, size_t len,
     uint8_t frame_mod = ck.mod;
     do {
       frame[frame_n++] = ck.usage;
+      if (mirror_on(
+              o)) { /* real-time view, one char at a time (see out_type) */
+        s_write(o, bytes + i, (size_t)cplen);
+        o->s_echo_open = false;
+      }
       i += (size_t)cplen;
       if (frame_n == 6 || i >= len)
         break;
@@ -348,7 +457,7 @@ Status out_type(Output *o, const char *bytes, size_t len, const char **err) {
 
     wait_tick(o);
     if (o->mode == OUT_TRANSCRIPT) {
-      Status s = write_bytes(o, bytes + i, (size_t)cplen, err);
+      Status s = t_write(o, bytes + i, (size_t)cplen, err);
       if (s != ST_OK)
         return s;
     } else {
@@ -360,6 +469,14 @@ Status out_type(Output *o, const char *bytes, size_t len, const char **err) {
                  "no US-layout key for U+%04" PRIX32, cp);
         *err = o->errbuf;
         return ST_ERR;
+      }
+      /* Mirror the character to stderr as it is typed, so a real run reads like
+         the dry-run transcript in real time (unless --quiet). After the keymap
+         check, so an unmappable character is not mirrored; a device-write
+         failure right after is reported immediately, on its own line. */
+      if (mirror_on(o)) {
+        s_write(o, bytes + i, (size_t)cplen);
+        o->s_echo_open = false; /* a following echo breaks to its own line */
       }
       uint8_t usage = ck.usage;
       if (o->fast) {
@@ -396,9 +513,12 @@ Status out_type(Output *o, const char *bytes, size_t len, const char **err) {
 Status out_chord(Output *o, const Str *text, uint8_t mods,
                  const uint8_t *usages, int n, const char **err) {
   wait_tick(o);
+  Status s = emit_marker(o, "", text, err); /* [ctrl + c] on its own line */
+  if (s != ST_OK)
+    return s;
   if (o->mode == OUT_TRANSCRIPT)
-    return tag(o, "", text, err);
-  Status s = write_report(o, mods, usages, n, err); /* press */
+    return ST_OK;
+  s = write_report(o, mods, usages, n, err); /* press */
   if (s != ST_OK)
     return s;
   return write_held(o, err); /* release */
@@ -430,8 +550,11 @@ Status out_hold(Output *o, const Str *text, uint8_t mods, const uint8_t *usages,
   o->held_mod = (uint8_t)(o->held_mod | mods);
 
   wait_tick(o);
+  Status s = emit_marker(o, "hold ", text, err);
+  if (s != ST_OK)
+    return s;
   if (o->mode == OUT_TRANSCRIPT)
-    return tag(o, "hold ", text, err);
+    return ST_OK;
   return write_held(o, err);
 }
 
@@ -468,9 +591,12 @@ Status out_release(Output *o, const Str *text, uint8_t mods,
   }
 
   wait_tick(o);
+  Status s = all ? emit_marker(o, "release all", NULL, err)
+                 : emit_marker(o, "release ", text, err);
+  if (s != ST_OK)
+    return s;
   if (o->mode == OUT_TRANSCRIPT)
-    return all ? tag(o, "release all", NULL, err)
-               : tag(o, "release ", text, err);
+    return ST_OK;
   return write_held(o, err);
 }
 

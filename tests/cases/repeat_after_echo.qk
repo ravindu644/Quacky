@@ -1,0 +1,3 @@
+typeln a
+echo "debug: about to repeat"
+repeat 1

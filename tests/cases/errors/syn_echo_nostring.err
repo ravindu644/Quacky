@@ -1,0 +1,4 @@
+2
+cases/errors/syn_echo_nostring.qk:1:5: error: expected a "..." string after 'echo'
+  echo
+      ^

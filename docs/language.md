@@ -31,9 +31,11 @@ the full list of key names you can press.
 - [Reading the host](#reading-the-host)
   - [Lock-key LEDs](#lock-key-leds)
   - [Detecting the OS](#detecting-the-os)
+- [Printing to the terminal: `echo`](#printing-to-the-terminal-echo)
 - [Conditions: if, elif, else](#conditions-if-elif-else)
 - [Loops: while and for](#loops-while-and-for)
 - [Functions](#functions)
+- [Stopping early: `exit`](#stopping-early-exit)
 - [Modules: import](#modules-import)
 - [Things that will trip you up](#things-that-will-trip-you-up)
 
@@ -351,6 +353,28 @@ fi
 Like the LED reads, `host_os` needs `--hid` and errors in a dry run. The first read does the probe;
 the result is remembered, so reading it again is free and does not toggle the keys a second time.
 
+## Printing to the terminal: `echo`
+
+`echo` prints a message to **your terminal** (stderr), never to the host. It is for progress and
+debugging: the host sees nothing, and the message never lands in a `-o` transcript. It takes a
+double-quoted string with the same `$name` / `${ ... }` interpolation as a `type` line:
+
+```
+os = host_os
+if os == "windows" then
+  echo "host is Windows"
+elif os == "linux" then
+  echo "host is Linux"
+else
+  echo "unsupported host: $os"
+fi
+```
+
+Unlike `type`, `echo` needs the quotes (so `echo "cost is \$5"` reads naturally), ends the line with
+a newline, and honours `\c` to drop it. It shows in a dry run and in a real `--hid` run alike; a real
+run also mirrors the keystrokes themselves to stderr as they are typed, which `--quiet` turns off
+(`echo` still prints under `--quiet`).
+
 ## Conditions: if, elif, else
 
 A condition must be a bool. There is no "truthiness", so compare explicitly (`if n != 0`, not
@@ -431,6 +455,42 @@ end
 typeln fib(10) = ${fib(10)}
 ```
 
+## Stopping early: `exit`
+
+`exit` stops the whole run immediately, like `exit` in a shell. Nothing after it runs, in this file
+or in a caller, and any held key is released on the way out. A bare `exit` ends with status 0; `exit
+N` ends with status `N` (0 to 255). It is allowed anywhere, including inside a function or a loop.
+
+This is how a helper refuses to go on when it hits a case it cannot handle, instead of falling
+through and letting the caller type into the wrong place:
+
+```
+func open_terminal
+  os = host_os
+  if os == "windows" then
+    super + r ; typeln cmd
+  elif os == "linux" then
+    super ; type terminal ; enter
+  else
+    echo "open_terminal: unsupported host $os"
+    exit 1
+  fi
+end
+
+open_terminal()
+typeln whoami          # not reached on an unsupported host
+```
+
+There is no built-in `abort`; `echo` plus `exit` is all it would be, so write it as a one-line helper
+if you want the name:
+
+```
+func abort msg
+  echo "$msg"
+  exit 1
+end
+```
+
 ## Modules: import
 
 `import` pulls another script into this one, so you can keep shared helpers and constants in their
@@ -490,6 +550,8 @@ A short list of rules that surprise people:
 - **`type`/`typeln` keep spaces** after the first one.
 - **A `type`/`typeln` must be last on its line.** It reads to the end of the line, so `type x ; enter`
   types `x ; enter` rather than pressing Enter. Chain with `;` up to the `type`, not after it.
-- **`$name` only works in a `type`/`typeln` line.** Outside typed text, name the variable with no
-  `$`: `delay d`, not `delay $d`. The `$` has no text to paste into.
-- **`\$` only works in a `type`/`typeln` line**, not inside a `"string"`.
+- **`$name` only works in a `type`/`typeln`/`echo` line.** Outside typed text, name the variable with
+  no `$`: `delay d`, not `delay $d`. The `$` has no text to paste into.
+- **`\$` only works in a `type`/`typeln`/`echo` line**, not inside a plain `"string"` value.
+- **`echo` needs quotes and goes to your terminal, not the host.** `echo "hi $name"`, not `echo hi
+  $name`; the host never sees it and it stays out of a `-o` transcript.

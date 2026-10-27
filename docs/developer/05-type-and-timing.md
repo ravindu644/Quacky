@@ -19,6 +19,17 @@ A third mode, `--check`, runs the lexer and parser only, prints the first error 
 and exits 2 or 0 without opening any output. The ordinary "syntax error ⇒ no output" guarantee
 (06) means a check is also implied by every normal run.
 
+Alongside the backend's own `fd` there is a second, always-stderr stream for text meant for the
+operator, not the host: `echo`, and the live mirror of a real run. `echo` writes to it in every
+mode. In `--hid` mode (unless `--quiet`) the backend also mirrors each keystroke and marker to it as
+they are sent, so a real run reads like its own dry-run transcript in real time; the device `fd`
+still gets only reports, so `.hid` output and the tests are unaffected. This stream is best effort,
+a closed stderr never fails a run, and it never carries the transcript that golden `.out` files
+compare (that stays on stdout/`-o`). Two line-position bits, `tbol` (the transcript `fd`) and `sbol`
+(stderr), let a marker or an `echo` open on a fresh line; `s_echo_open` distinguishes a partial line
+left by `echo \c` (the next `echo` continues it) from one left by the mirror (the next `echo`
+breaks). `--quiet` only silences the mirror; `echo` always prints.
+
 ```c
 typedef enum { OUT_TRANSCRIPT, OUT_HID } OutMode;
 

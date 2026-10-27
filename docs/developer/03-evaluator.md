@@ -7,20 +7,28 @@ evaluator returns a status code and writes its result through an out-parameter. 
 ## 1. Status codes
 
 ```c
-typedef enum { ST_OK, ST_ERR, ST_RETURN, ST_BREAK, ST_CONTINUE } Status;
+typedef enum { ST_OK, ST_ERR, ST_RETURN, ST_BREAK, ST_CONTINUE, ST_EXIT } Status;
 ```
 
-Lifted from picol (`picol.c:63`). The non-OK codes travel up the C stack until something
-consumes them:
+Lifted from picol (`picol.c:63`), with `ST_EXIT` added for the `exit` statement. The non-OK codes
+travel up the C stack until something consumes them:
 
 | Code | Produced by | Consumed by |
 |---|---|---|
 | `ST_ERR` | any runtime failure | `main`, which prints `interp->err` and exits 1 |
 | `ST_RETURN` | `return` stmt (value parked in `interp->ret`) | `call_function`, which turns it into `ST_OK` + value |
 | `ST_BREAK` / `ST_CONTINUE` | the statements | the innermost loop (`picol.c:659-667` is the exact shape) |
+| `ST_EXIT` | `exit` stmt (code parked in `interp->exit_code`) | `main`, which exits with that code and prints nothing |
+
+`ST_EXIT` is the only non-OK code that both escapes a function body (so `call_function` propagates
+it instead of asserting, exactly as it does `ST_ERR`) and unwinds the whole run to `main`. Unlike
+`ST_ERR` it carries no diagnostic: `exit` is a clean stop, not a failure, so `main` prints nothing
+and uses `interp->exit_code` (0 for a bare `exit`, else the validated 0..255 argument). `out_close`
+still runs, so a key held at the moment of `exit` is released.
 
 Because the parser already rejected `break`/`continue`/`return` in illegal positions, the
-evaluator never has to handle an unconsumed one; it can `assert` on it.
+evaluator never has to handle an unconsumed one; it can `assert` on it. `exit` is legal anywhere, so
+it is not in that set.
 
 Every call site is one line: `Status s = eval_x(...); if (s != ST_OK) return s;`. Expression
 evaluation only ever yields `ST_OK` or `ST_ERR`.

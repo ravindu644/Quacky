@@ -218,10 +218,12 @@ static Status call_function(Interp *I, Func *f, Value *args, int nargs,
   free_frame(fr);
   I->depth--;
 
-  assert(s == ST_OK || s == ST_RETURN ||
-         s == ST_ERR); /* break/continue can't escape a func body */
+  assert(s == ST_OK || s == ST_RETURN || s == ST_ERR ||
+         s == ST_EXIT); /* break/continue can't escape a func body; exit can */
   if (s == ST_ERR)
     return ST_ERR;
+  if (s == ST_EXIT)
+    return ST_EXIT; /* unwind past the caller all the way to main */
   *out = result;
   return ST_OK;
 }
@@ -532,6 +534,31 @@ static Status exec_type(Interp *I, Stmt *s) {
   return ST_OK;
 }
 
+/* echo: the same segments as `type`, but printed to stderr (out_echo), never to
+   the host. It is not an output action, so it neither paces nor owes the
+   default-delay gap; a failing stderr write is swallowed by out_echo, so the
+   only error here is a bad interpolated expression. The newline is baked into
+   the final segment, exactly as for `type`. */
+static Status exec_echo(Interp *I, Stmt *s) {
+  out_echo_begin(I->out);
+  for (int i = 0; i < s->type.nsegs; i++) {
+    Seg *seg = &s->type.segs[i];
+    if (seg->kind == SEG_TEXT) {
+      out_echo(I->out, seg->text.p, seg->text.len);
+    } else {
+      Value v;
+      Status st = eval_value(I, seg->expr, &v);
+      if (st != ST_OK)
+        return st;
+      QStr *q = to_string(v);
+      out_echo(I->out, q->data, q->len);
+      str_release(q);
+      val_release(v);
+    }
+  }
+  return ST_OK;
+}
+
 static Status exec_type_file(Interp *I, Stmt *s) {
   const char *err = NULL;
   const char *bytes =
@@ -732,6 +759,21 @@ static Status exec_stmt(Interp *I, Stmt *s) {
     }
     break;
   }
+  case S_ECHO:
+    st = exec_echo(I, s);
+    break;
+  case S_EXIT: {
+    if (s->expr) {
+      int64_t code;
+      st = eval_count(I, s->expr, "exit", &code);
+      if (st != ST_OK)
+        return st;
+      if (code > 255)
+        return rt_error(I, s->line, s->col, "exit code must be 0..255");
+      I->exit_code = (int)code;
+    }
+    return ST_EXIT;
+  }
   case S_TYPE:
     st = exec_type(I, s);
     break;
@@ -768,10 +810,11 @@ static Status exec_stmt(Interp *I, Stmt *s) {
 
   /* `repeat` bookkeeping (03 §4.1): remember the last action; clear it on any
      other statement; `repeat` itself preserves it, so two in a row both work.
-   */
+     `echo` preserves it too, so a debug print between an action and a `repeat`
+     stays transparent (it is not an output action). */
   if (stmt_is_action(s->kind))
     I->last_action = s;
-  else if (s->kind != S_REPEAT)
+  else if (s->kind != S_REPEAT && s->kind != S_ECHO)
     I->last_action = NULL;
   return ST_OK;
 }
@@ -796,8 +839,9 @@ Status run(Interp *I, Program *prog) {
   I->frame = I->globals;
 
   Status s = exec_block(I, prog->top);
-  assert(s == ST_OK || s == ST_ERR); /* return/break/continue were rejected at
-                                        top level by the parser */
+  assert(s == ST_OK || s == ST_ERR ||
+         s == ST_EXIT); /* return/break/continue were rejected at top level by
+                           the parser; exit is allowed anywhere */
   free_frame(I->globals);
   return s;
 }

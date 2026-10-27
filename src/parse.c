@@ -896,6 +896,38 @@ static Stmt *parse_release(Parser *p) {
   s->chord = parse_chord_body(p, first);
   return s;
 }
+/* echo takes a double-quoted string, not an unquoted raw line like `type`, so
+   the quotes delimit and `echo "hi $x"` reads naturally. The string's inner
+   slice is then run through the same interpolation path as a `type` line
+   ($name, ${expr}, \$, escapes, \c), ending with a newline unless \c drops it.
+   The col is bumped past the opening quote so a diagnostic caret inside a
+   ${...} lands on the real source column. */
+static Stmt *parse_echo(Parser *p) {
+  Token t = p->cur;
+  p_advance(p);
+  if (!p_check(p, T_STRING))
+    perr(p, p->cur, "expected a \"...\" string after 'echo'");
+  Token raw = p->cur;
+  raw.col = raw.col + 1;
+  p_advance(p);
+  Stmt *s = mk_stmt(p, S_ECHO, t);
+  parse_raw_line(p, raw, s, true);
+  return s;
+}
+/* exit stops the whole run. The code is optional (bare exit = 0), parsed like
+   `return`'s optional value: absent when the statement ends here. Unlike
+   return/break/continue it is allowed anywhere, so no position check. */
+static Stmt *parse_exit(Parser *p) {
+  Token t = p->cur;
+  p_advance(p);
+  Stmt *s = mk_stmt(p, S_EXIT, t);
+  if (p_check(p, T_NEWLINE) || p_check(p, T_SEMI) || p_check(p, T_EOF) ||
+      is_closer_kw(p->cur.kind))
+    s->expr = NULL;
+  else
+    s->expr = parse_expr(p);
+  return s;
+}
 static Stmt *parse_type(Parser *p) {
   Token t = p->cur;
   p_advance(p); /* t.kind is T_TYPE or T_TYPELN */
@@ -1000,6 +1032,10 @@ static Stmt *parse_statement(Parser *p) {
     return parse_expr_stmt(p, S_ULTRAMODE);
   case T_REPEAT:
     return parse_expr_stmt(p, S_REPEAT);
+  case T_ECHO:
+    return parse_echo(p);
+  case T_EXIT:
+    return parse_exit(p);
   case T_HOLD:
     return parse_hold(p);
   case T_RELEASE:

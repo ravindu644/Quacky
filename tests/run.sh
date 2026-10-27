@@ -74,7 +74,9 @@ check_error() { # $1 = .qk, $2 = extra args
     esac
 }
 for qk in cases/errors/*.qk;     do check_error "$qk" "-o $TMP/o"; done
-for qk in cases/errors_hid/*.qk; do dev=$TMP/hdev; : > "$dev"; check_error "$qk" "--hid $dev"; done
+# --quiet so the live keystroke mirror (also on stderr) does not precede the
+# diagnostic these cases assert on; the mirror has its own test below.
+for qk in cases/errors_hid/*.qk; do dev=$TMP/hdev; : > "$dev"; check_error "$qk" "--quiet --hid $dev"; done
 
 # The fastmode/ultramode statements must produce exactly the HID bytes of the
 # --fast/--ultra flags (and fastmode 0 the bytes of neither). Compare the stream
@@ -100,6 +102,28 @@ printf 'import %s/lib/mod.qk\n' "$IMP"                 > "$IMP/lib/via.qk"
 printf 'import ./lib/mod.qk\nimport ./lib/via.qk\nshared_fn()\n' > "$IMP/main.qk"
 if "$QUACKY" -d 0 --check "$IMP/main.qk" >/dev/null 2>&1; then ok
 else bad "import-once dedups relative vs absolute spelling"; fi
+
+# echo prints to stderr only, never the transcript on stdout/-o, with the same
+# $-interpolation as a type line; \c drops the newline so the next echo
+# continues the line. These assert on stderr, which the golden loop ignores.
+printf 'x = 40\necho "sum=${x + 2}"\necho "a\\c"\necho "b"\n' > "$TMP/e.qk"
+e_out=$("$QUACKY" -d 0 "$TMP/e.qk" 2>/dev/null)
+e_err=$("$QUACKY" -d 0 "$TMP/e.qk" 2>&1 >/dev/null)
+if [ -z "$e_out" ] && [ "$e_err" = "$(printf 'sum=42\nab')" ]; then ok
+else bad "echo (stdout=[$e_out] stderr=[$e_err])"; fi
+
+# exit stops the run with the given code: bare exit is 0, exit N is N.
+printf 'echo "x"\nexit\n'  > "$TMP/x0.qk"; "$QUACKY" -d 0 "$TMP/x0.qk" >/dev/null 2>&1; [ $? = 0 ] && ok || bad "bare exit != 0"
+printf 'exit 5\n'          > "$TMP/x5.qk"; "$QUACKY" -d 0 "$TMP/x5.qk" >/dev/null 2>&1; [ $? = 5 ] && ok || bad "exit 5 != 5"
+
+# The live mirror writes the dry-run transcript to stderr during a real --hid
+# run; --quiet silences it while echo still prints.
+printf 'typeln hi\n' > "$TMP/m.qk"; dev=$TMP/mdev; : > "$dev"
+m_err=$("$QUACKY" -d 0 --hid "$dev" "$TMP/m.qk" 2>&1 >/dev/null)
+[ "$m_err" = "hi" ] && ok || bad "live mirror absent on stderr ([$m_err])"
+printf 'echo "E"\ntypeln hi\n' > "$TMP/mq.qk"; : > "$dev"
+mq_err=$("$QUACKY" -d 0 --quiet --hid "$dev" "$TMP/mq.qk" 2>&1 >/dev/null)
+[ "$mq_err" = "E" ] && ok || bad "--quiet should silence mirror, keep echo ([$mq_err])"
 
 # Timing and fuzzing: wall-clock sensitive, so local runs only. Measure against
 # an -O2 build, not the ASan one whose start-up cost would blur the tight bounds;

@@ -32,7 +32,8 @@ typedef struct {
                               type_file */
   char err[512];           /* runtime error message */
   int err_line, err_col;
-  Output *out; /* owns the fd, the clock, and the held-key set (05) */
+  int exit_code; /* the process code a script `exit` asked for; 0 by default */
+  Output *out;   /* owns the fd, the clock, and the held-key set (05) */
 } Interp;
 
 /* Formats into I->err, records the failing node's line/col, returns ST_ERR, so
@@ -42,8 +43,9 @@ typedef struct {
 Status rt_error(Interp *I, int line, int col, const char *fmt, ...)
     __attribute__((format(printf, 4, 5)));
 
-/* Register the program's functions, then run the top block. Returns ST_OK or
-   ST_ERR (with I->err set); the caller maps that to an exit code. */
+/* Register the program's functions, then run the top block. Returns ST_OK,
+   ST_ERR (with I->err set), or ST_EXIT (with I->exit_code set by `exit`); the
+   caller maps that to an exit code. */
 Status run(Interp *I, Program *prog);
 
 #endif
