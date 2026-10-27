@@ -454,9 +454,9 @@ static Status eval_expr(Interp *I, Expr *e, Value *out) {
     case T_SCROLLLOCK_ON: {
       /* The host LED reads are bool and can fail (no host in a dry run, or a
          write-only node), unlike the four settings above. */
-      int bit = (e->bin.op == T_NUMLOCK_ON)    ? 0
-                : (e->bin.op == T_CAPSLOCK_ON) ? 1
-                                               : 2;
+      int bit = (e->bin.op == T_NUMLOCK_ON)    ? LED_NUM
+                : (e->bin.op == T_CAPSLOCK_ON) ? LED_CAPS
+                                               : LED_SCROLL;
       bool b;
       const char *err = NULL;
       if (out_led(I->out, bit, &b, &err) != ST_OK)

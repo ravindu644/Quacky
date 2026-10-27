@@ -657,14 +657,19 @@ Status out_led(Output *o, int bit, bool *val, const char **err) {
   return ST_OK;
 }
 
-/* Wait for the host to send any LED output report, or until timeout_ms elapses.
-   Returns whether a report arrived (and updates led_state from it). This is the
-   signal that the host reflects the lock key we just toggled: a report arrives
-   exactly when the host echoes the change, whatever the bit values were before,
-   so it does not depend on knowing the initial LED state. Event-driven: poll
-   blocks until a report or the remaining time, so it returns on the host's real
-   latency (tens of ms) rather than a fixed pad. */
-static bool wait_led_report(Output *o, int64_t timeout_ms) {
+/* Wait until the host echoes the lock key we just toggled, or timeout_ms
+   elapses, updating led_state from every report seen. Event-driven: poll blocks
+   until a report or the remaining time, so it returns on the host's real
+   latency (tens of ms) rather than a fixed pad. The return and what counts as
+   the echo depend on bit:
+   bit >= 0: returns true only when a report flips that LED. A report that does
+   not flip it, a late or stray echo of an earlier toggle (e.g. a NumLock
+   restore landing in the ScrollLock wait), is absorbed into led_state and the
+   wait goes on. Flip detection (XOR of prev and new) is what lets this work
+   regardless of the key's initial state.
+   bit < 0: returns true on any report, without caring which bit moved; used
+   only to drain a restore tap's echo, where the exact bit does not matter. */
+static bool wait_led_report(Output *o, int bit, int64_t timeout_ms) {
   struct timespec deadline;
   clock_gettime(CLOCK_MONOTONIC, &deadline);
   ts_add_ns(&deadline, timeout_ms * 1000000);
@@ -680,8 +685,10 @@ static bool wait_led_report(Output *o, int64_t timeout_ms) {
       uint8_t buf[8];
       ssize_t n = read(o->fd, buf, sizeof buf);
       if (n > 0) {
+        uint8_t prev = o->led_state;
         o->led_state = buf[n - 1];
-        return true;
+        if (bit < 0 || ((unsigned)(prev ^ o->led_state) >> bit) & 1u)
+          return true;
       }
     }
     /* r == 0: timed out, the loop re-checks and returns false. r < 0 on EINTR:
@@ -714,12 +721,12 @@ static Status tap_key(Output *o, uint8_t usage, const char **err) {
    any stale queued report first, so the only report that can arrive is the echo
    of this toggle. On a write failure *st carries the error; the caller returns
    it. */
-static bool key_is_reflected(Output *o, uint8_t usage, int64_t timeout_ms,
-                             const char **err, Status *st) {
+static bool key_is_reflected(Output *o, uint8_t usage, int bit,
+                             int64_t timeout_ms, const char **err, Status *st) {
   drain_led(o); /* discard anything stale so we only see this toggle's echo */
   if ((*st = tap_key(o, usage, err)) != ST_OK)
     return false;
-  return wait_led_report(o, timeout_ms);
+  return wait_led_report(o, bit, timeout_ms);
 }
 
 /* The LED-reflection heuristic is borrowed from flipper_suite's
@@ -743,10 +750,11 @@ Status out_detect_os(Output *o, const char **name, const char **err) {
   Status st;
 
   /* Connectivity and calibration: toggling CapsLock must make the host echo an
-     LED report (all of Windows, macOS and Linux reflect CapsLock). No echo at
-     all means the USB HID stack is not active, so there is nothing to detect.
-     Detecting the echo itself, not a bit value, is what makes this work when a
-     lock key starts on. We also time how long the echo takes, to size the
+     LED report (all of Windows, macOS and Linux reflect CapsLock). No flip of
+     the Caps LED means the USB HID stack is not active, so there is nothing to
+     detect. Keying off the bit *flip* (not its value) is what makes this work
+     when a lock key starts on, and it absorbs stray echoes that would otherwise
+     shorten the calibration. We also time how long the echo takes, to size the
      timeout for the probes that must wait out a *missing* echo below: a
      reflected key answers about as fast as Caps did, so a few times that
      latency is a confident "nothing is coming", far quicker than a fixed
@@ -754,7 +762,7 @@ Status out_detect_os(Output *o, const char **name, const char **err) {
   struct timespec t0, t1;
   clock_gettime(CLOCK_MONOTONIC, &t0);
   bool caps_reflected =
-      key_is_reflected(o, CAPS, OS_PROBE_TIMEOUT_MS, err, &st);
+      key_is_reflected(o, CAPS, LED_CAPS, OS_PROBE_TIMEOUT_MS, err, &st);
   clock_gettime(CLOCK_MONOTONIC, &t1);
   if (!caps_reflected) {
     if (st != ST_OK)
@@ -771,12 +779,12 @@ Status out_detect_os(Output *o, const char **name, const char **err) {
 
   if ((st = tap_key(o, CAPS, err)) != ST_OK) /* restore */
     return st;
-  wait_led_report(o, probe_ms); /* consume the restore's echo */
+  wait_led_report(o, -1, probe_ms); /* consume the restore's echo */
 
   const char *result;
 
   /* NumLock: macOS ignores it on an external keyboard, so no echo -> macOS. */
-  bool num_reflected = key_is_reflected(o, NUM, probe_ms, err, &st);
+  bool num_reflected = key_is_reflected(o, NUM, LED_NUM, probe_ms, err, &st);
   if (st != ST_OK)
     return st;
   if (!num_reflected) {
@@ -784,16 +792,17 @@ Status out_detect_os(Output *o, const char **name, const char **err) {
   } else {
     if ((st = tap_key(o, NUM, err)) != ST_OK) /* restore */
       return st;
-    wait_led_report(o, probe_ms);
+    wait_led_report(o, -1, probe_ms);
 
     /* ScrollLock: Windows reflects it, most Linux desktops do not. */
-    bool scroll_reflected = key_is_reflected(o, SCROLL, probe_ms, err, &st);
+    bool scroll_reflected =
+        key_is_reflected(o, SCROLL, LED_SCROLL, probe_ms, err, &st);
     if (st != ST_OK)
       return st;
     if (scroll_reflected) {
       if ((st = tap_key(o, SCROLL, err)) != ST_OK) /* restore */
         return st;
-      wait_led_report(o, probe_ms);
+      wait_led_report(o, -1, probe_ms);
       result = "windows";
     } else {
       result = "linux";

@@ -16,6 +16,12 @@
 
 typedef enum { OUT_TRANSCRIPT, OUT_HID } OutMode;
 
+/* Bit positions in the host's LED output report, the one source of truth for
+   the lock-key mapping. eval.c and output.c both index led_state by these;
+   passing the wrong one (e.g. Num with the Scroll bit) would compile clean and
+   silently misdetect the OS. */
+enum { LED_NUM = 0, LED_CAPS = 1, LED_SCROLL = 2 };
+
 typedef struct {
   int fd; /* -1 until opened */
   OutMode mode;
@@ -33,9 +39,9 @@ typedef struct {
   uint8_t held_key[6]; /* non-modifier usages held; 0 = empty slot */
   bool can_read;     /* the hidg node opened readable (O_RDWR), so the host LED
                         output report can be read back; false = write-only */
-  uint8_t led_state; /* last LED bitmap the host sent (bit 0 Num, 1 Caps, 2
-                        Scroll); the host only sends on a change, so this caches
-                        it between reads */
+  uint8_t led_state; /* last LED bitmap the host sent, indexed by LED_* above;
+                        the host only sends on a change, so this caches it
+                        between reads */
   const char *os_name; /* cached host_os result (a static literal), NULL until a
                           definite detection; probing toggles keys, so we do it
                           once (like DuckyScript's $_OS) */
