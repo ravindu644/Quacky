@@ -101,6 +101,14 @@ static CharKey de_char_key(int cp) {
     return (CharKey){true, 0, (uint8_t)(0x1e + cp - '1')};
   if (cp == '0') return (CharKey){true, 0, 0x27};
   switch (cp) {
+    case 8: return (CharKey){true, 0, 0x2a};
+    case 9: return (CharKey){true, 0, 0x2b};
+    case 10: return (CharKey){true, 0, 0x28};
+    case 32: return (CharKey){true, 0, 0x2c};
+    case 44: return (CharKey){true, 0, 0x36};
+    case 46: return (CharKey){true, 0, 0x37};
+    case 45: return (CharKey){true, 0, 0x38};
+    case 47: return (CharKey){true, MOD_SHIFT, 0x24};
     /* DE_CASES */
   }
   return (CharKey){false, 0, 0};
