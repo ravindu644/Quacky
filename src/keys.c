@@ -140,6 +140,10 @@ static CharKey de_char_key(int cp) {
     case 0x00e4: return (CharKey){true, 0, 0x34};
     case 0x00f6: return (CharKey){true, 0, 0x33};
     case 0x00fc: return (CharKey){true, 0, 0x2f};
+    case 0x00c4: return (CharKey){true, MOD_SHIFT, 0x34};
+    case 0x00d6: return (CharKey){true, MOD_SHIFT, 0x33};
+    case 0x00dc: return (CharKey){true, MOD_SHIFT, 0x2f};
+    case 0x20ac: return (CharKey){true, MOD_ALTGR, 0x08};
     /* DE_CASES */
   }
   return (CharKey){false, 0, 0};
