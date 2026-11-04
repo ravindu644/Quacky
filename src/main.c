@@ -9,6 +9,7 @@
 #include <sysexits.h>
 
 #include "eval.h"
+#include "keys.h"
 #include "output.h"
 #include "parse.h"
 #include "quacky.h"
