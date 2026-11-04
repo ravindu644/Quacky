@@ -88,6 +88,10 @@ KeyRef key_lookup(Str name) {
   return (KeyRef){KEY_NONE, 0};
 }
 
+static KeyLayout selected_layout = KEY_LAYOUT_US;
+
+void key_set_layout(KeyLayout layout) { selected_layout = layout; }
+
 CharKey char_key(int cp) {
   if (cp >= 'a' && cp <= 'z')
     return (CharKey){true, 0, (uint8_t)(0x04 + (cp - 'a'))};
