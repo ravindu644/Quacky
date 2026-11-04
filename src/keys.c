@@ -92,7 +92,22 @@ static KeyLayout selected_layout = KEY_LAYOUT_US;
 
 void key_set_layout(KeyLayout layout) { selected_layout = layout; }
 
+static CharKey de_char_key(int cp) {
+  if (cp >= 'a' && cp <= 'z')
+    return (CharKey){true, 0, (uint8_t)(0x04 + ((cp == 'y') ? 'z' - 'a' : (cp == 'z') ? 'y' - 'a' : cp - 'a'))};
+  if (cp >= 'A' && cp <= 'Z')
+    return (CharKey){true, MOD_SHIFT, (uint8_t)(0x04 + ((cp == 'Y') ? 'Z' - 'A' : (cp == 'Z') ? 'Y' - 'A' : cp - 'A'))};
+  if (cp >= '1' && cp <= '9')
+    return (CharKey){true, 0, (uint8_t)(0x1e + cp - '1')};
+  if (cp == '0') return (CharKey){true, 0, 0x27};
+  switch (cp) {
+    /* DE_CASES */
+  }
+  return (CharKey){false, 0, 0};
+}
+
 CharKey char_key(int cp) {
+  if (selected_layout == KEY_LAYOUT_DE) return de_char_key(cp);
   if (cp >= 'a' && cp <= 'z')
     return (CharKey){true, 0, (uint8_t)(0x04 + (cp - 'a'))};
   if (cp >= 'A' && cp <= 'Z')
