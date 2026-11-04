@@ -54,6 +54,7 @@ jobs:
       run: |
         make debug-hardened
         QK_SKIP_TIMING=1 tests/run.sh
+        python3 tests/test_de_layout.py output/quacky-hardened
 
     # The release URL names a fixed set of toolchains, so it is the whole key
     - name: Cache Toolchains

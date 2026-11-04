@@ -77,6 +77,19 @@ make native                              # build output/quacky for this machine
 ./output/quacky --hid /dev/hidg0 script.qk  # type for real over USB
 ```
 
+For a German QWERTZ target, use `--layout DE` with the HID output. The default remains
+`--layout US` for compatibility with existing scripts. For example:
+
+```sh
+./output/quacky --layout DE --hid /dev/hidg0 script.qk
+```
+
+The DE layout maps German ISO keyboard usages including Y/Z, umlauts, ß, €, and common
+AltGr combinations. Unsupported Unicode characters (such as emoji and symbols
+requiring a dead-key sequence) return an error rather than generating incorrect
+keystrokes. The target operating system must already use the corresponding
+keyboard layout; the HID protocol cannot change the target's active layout.
+
 The `/dev/hidg0` node comes from [USB Arsenal](https://github.com/ravindu644/USB-Arsenal); you do
 not need it for a dry run. See [docs/getting-started.md](docs/getting-started.md) for the full walk
 through.

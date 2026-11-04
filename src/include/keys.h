@@ -31,6 +31,9 @@ KeyRef key_lookup(Str name);
 /* Map a US-ASCII code point to its (modifier, usage); ok=false when there is no
    US-layout key. A few control characters map to named keys so `type` works:
    '\n' -> enter, '\t' -> tab, '\b' -> backspace. */
+typedef enum { KEY_LAYOUT_US, KEY_LAYOUT_DE } KeyLayout;
+void key_set_layout(KeyLayout layout);
+
 CharKey char_key(int codepoint);
 
 #endif

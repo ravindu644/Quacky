@@ -9,6 +9,7 @@
 #include <sysexits.h>
 
 #include "eval.h"
+#include "keys.h"
 #include "output.h"
 #include "parse.h"
 #include "quacky.h"
@@ -27,6 +28,7 @@ static const char USAGE[] =
     "throughput\n"
     "  --ultra           pack a run of distinct keys per report, up to ~6x on "
     "such runs\n"
+    "  --layout US|DE    HID character mapping (default US)\n"
     "  --quiet           with --hid, do not mirror the keystrokes to stderr\n"
     "  --version         show the version and build date\n"
     "  --help            show this message\n";
@@ -100,6 +102,15 @@ int main(int argc, char **argv) {
       ultra = true;
     else if (strcmp(a, "--quiet") == 0)
       quiet = true;
+    else if (strcmp(a, "--layout") == 0) {
+      if (++i >= argc) usage_error("--layout needs US or DE");
+      if (strcmp(argv[i], "US") == 0 || strcmp(argv[i], "us") == 0)
+        key_set_layout(KEY_LAYOUT_US);
+      else if (strcmp(argv[i], "DE") == 0 || strcmp(argv[i], "de") == 0)
+        key_set_layout(KEY_LAYOUT_DE);
+      else
+        usage_error("--layout must be US or DE");
+    }
     else if (strcmp(a, "--hid") == 0) {
       if (++i >= argc)
         usage_error("--hid needs a device");

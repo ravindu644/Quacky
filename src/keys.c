@@ -88,7 +88,71 @@ KeyRef key_lookup(Str name) {
   return (KeyRef){KEY_NONE, 0};
 }
 
+static KeyLayout selected_layout = KEY_LAYOUT_US;
+
+void key_set_layout(KeyLayout layout) { selected_layout = layout; }
+
+static CharKey de_char_key(int cp) {
+  if (cp >= 'a' && cp <= 'z')
+    return (CharKey){true, 0, (uint8_t)(0x04 + ((cp == 'y') ? 'z' - 'a' : (cp == 'z') ? 'y' - 'a' : cp - 'a'))};
+  if (cp >= 'A' && cp <= 'Z')
+    return (CharKey){true, MOD_SHIFT, (uint8_t)(0x04 + ((cp == 'Y') ? 'Z' - 'A' : (cp == 'Z') ? 'Y' - 'A' : cp - 'A'))};
+  if (cp >= '1' && cp <= '9')
+    return (CharKey){true, 0, (uint8_t)(0x1e + cp - '1')};
+  if (cp == '0') return (CharKey){true, 0, 0x27};
+  switch (cp) {
+    case 8: return (CharKey){true, 0, 0x2a};
+    case 9: return (CharKey){true, 0, 0x2b};
+    case 10: return (CharKey){true, 0, 0x28};
+    case 32: return (CharKey){true, 0, 0x2c};
+    case 44: return (CharKey){true, 0, 0x36};
+    case 46: return (CharKey){true, 0, 0x37};
+    case 45: return (CharKey){true, 0, 0x38};
+    case 47: return (CharKey){true, MOD_SHIFT, 0x24};
+    case 33: return (CharKey){true, MOD_SHIFT, 0x1e};
+    case 34: return (CharKey){true, MOD_SHIFT, 0x1f};
+    case 35: return (CharKey){true, 0, 0x32};
+    case 36: return (CharKey){true, MOD_SHIFT, 0x21};
+    case 37: return (CharKey){true, MOD_SHIFT, 0x22};
+    case 38: return (CharKey){true, MOD_SHIFT, 0x23};
+    case 39: return (CharKey){true, MOD_SHIFT, 0x32};
+    case 40: return (CharKey){true, MOD_SHIFT, 0x25};
+    case 41: return (CharKey){true, MOD_SHIFT, 0x26};
+    case 42: return (CharKey){true, MOD_SHIFT, 0x30};
+    case 43: return (CharKey){true, 0, 0x30};
+    case 58: return (CharKey){true, MOD_SHIFT, 0x37};
+    case 59: return (CharKey){true, MOD_SHIFT, 0x36};
+    case 60: return (CharKey){true, 0, 0x64};
+    case 61: return (CharKey){true, MOD_SHIFT, 0x27};
+    case 62: return (CharKey){true, MOD_SHIFT, 0x64};
+    case 63: return (CharKey){true, MOD_SHIFT, 0x2d};
+    case 64: return (CharKey){true, MOD_ALTGR, 0x14};
+    case 91: return (CharKey){true, MOD_ALTGR, 0x25};
+    case 92: return (CharKey){true, MOD_ALTGR, 0x2d};
+    case 93: return (CharKey){true, MOD_ALTGR, 0x26};
+    case 95: return (CharKey){true, MOD_SHIFT, 0x38};
+    case 123: return (CharKey){true, MOD_ALTGR, 0x24};
+    case 124: return (CharKey){true, MOD_ALTGR, 0x64};
+    case 125: return (CharKey){true, MOD_ALTGR, 0x27};
+    case 0x00a7: return (CharKey){true, MOD_SHIFT, 0x20};
+    case 0x00b0: return (CharKey){true, MOD_SHIFT, 0x35};
+    case 0x00df: return (CharKey){true, 0, 0x2d};
+    case 0x00e4: return (CharKey){true, 0, 0x34};
+    case 0x00f6: return (CharKey){true, 0, 0x33};
+    case 0x00fc: return (CharKey){true, 0, 0x2f};
+    case 0x00c4: return (CharKey){true, MOD_SHIFT, 0x34};
+    case 0x00d6: return (CharKey){true, MOD_SHIFT, 0x33};
+    case 0x00dc: return (CharKey){true, MOD_SHIFT, 0x2f};
+    case 0x20ac: return (CharKey){true, MOD_ALTGR, 0x08};
+    case 0x00b2: return (CharKey){true, MOD_ALTGR, 0x1f};
+    case 0x00b3: return (CharKey){true, MOD_ALTGR, 0x20};
+    case 0x00b5: return (CharKey){true, MOD_ALTGR, 0x10};
+  }
+  return (CharKey){false, 0, 0};
+}
+
 CharKey char_key(int cp) {
+  if (selected_layout == KEY_LAYOUT_DE) return de_char_key(cp);
   if (cp >= 'a' && cp <= 'z')
     return (CharKey){true, 0, (uint8_t)(0x04 + (cp - 'a'))};
   if (cp >= 'A' && cp <= 'Z')
