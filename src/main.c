@@ -28,6 +28,7 @@ static const char USAGE[] =
     "throughput\n"
     "  --ultra           pack a run of distinct keys per report, up to ~6x on "
     "such runs\n"
+    "  --layout US|DE    HID character mapping (default US)\n"
     "  --quiet           with --hid, do not mirror the keystrokes to stderr\n"
     "  --version         show the version and build date\n"
     "  --help            show this message\n";
